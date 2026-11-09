@@ -1,13 +1,13 @@
 // Accounting engine: pure functions over the db object (no DOM), tested by tests.js.
 (function (root) {
-  const COLLS = ['products', 'contacts', 'sales', 'purchases', 'productions', 'adjustments', 'expenses', 'payments', 'partners', 'partnerTx', 'distributions'];
+  const COLLS = ['products', 'contacts', 'sales', 'purchases', 'productions', 'adjustments', 'expenses', 'payments', 'partners', 'partnerTx', 'distributions', 'rates'];
 
   const blank = () => {
     const db = {
       version: 1,
       settings: {
         company: 'بلاستيكة', slogan: '3D Printing • Printers • Filament', phone: '', address: '',
-        currency: '$', currency2: '', rate: 0, openingCash: 0, reservePct: 0,
+        currency: '$', currency2: 'ل.س', rate: 0, openingCash: 0, shopPct: 16, roundStep: 10,
         filamentKg: 20, machineHour: 0.3, powerHour: 0.05, failPct: 5, retailMarkup: 100, wholesaleMarkup: 50,
         lastBackup: 0, updatedAt: 0
       }
@@ -196,7 +196,15 @@
     return out;
   }
 
-  const isValidBackup = o => !!o && typeof o === 'object' && !!o.settings && COLLS.every(c => Array.isArray(o[c]));
+  const isValidBackup = o => !!o && typeof o === 'object' && !!o.settings && ['products', 'sales', 'purchases'].every(c => Array.isArray(o[c]));
 
-  root.Core = { COLLS, blank, r2, live, byId, docSub, docTotal, sign, inRange, monthRange, stock, inventoryValue, pl, productSales, contactBalance, debts, cashLog, cash, partnerAccount, distributionPreview, balanceSheet, merge, isValidBackup };
+  // Exchange rate in force on a date: the latest one set on or before it, else the earliest known.
+  function rateAt(db, date) {
+    const rs = live(db, 'rates').filter(r => +r.rate > 0).sort((a, b) => a.date.localeCompare(b.date));
+    let found = null;
+    rs.forEach(r => { if (!date || r.date <= date) found = r; });
+    return found ? +found.rate : rs.length ? +rs[0].rate : +(db.settings && db.settings.rate) || 0;
+  }
+
+  root.Core = { COLLS, blank, r2, live, byId, docSub, docTotal, sign, inRange, monthRange, stock, inventoryValue, pl, productSales, contactBalance, debts, cashLog, cash, partnerAccount, distributionPreview, balanceSheet, merge, isValidBackup, rateAt };
 })(typeof window !== 'undefined' ? window : globalThis);

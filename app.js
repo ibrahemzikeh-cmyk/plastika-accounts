@@ -20,6 +20,19 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const num = n => (+n || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
 const money = n => `<span class="num">${num(n)} ${esc(db.settings.currency)}</span>`;
 const plain = n => `${num(n)} ${db.settings.currency}`;
+const cur2 = () => db.settings.currency2 || 'ل.س';
+const rateOn = (date = today()) => C.rateAt(db, date);
+const step = () => +db.settings.roundStep || 1;
+const toSyp = (usd, date) => { const r = rateOn(date); return r ? Math.round((+usd || 0) * r / step()) * step() : null; };
+const sypTxt = (usd, date) => { const v = toSyp(usd, date); return v == null ? '' : `${num(v)} ${cur2()}`; };
+const syp = (usd, date) => { const v = sypTxt(usd, date); return v ? `<small class="syp num">${esc(v)}</small>` : ''; };
+const curSel = (name, val, id = '') => `<label class="f">العملة<select name="${name}" ${id}><option value="usd" ${val !== 'syp' ? 'selected' : ''}>${esc(db.settings.currency)} دولار</option><option value="syp" ${val === 'syp' ? 'selected' : ''}>${esc(cur2())} ليرة</option></select></label>`;
+// Converts an entered amount to dollars at the rate of its date.
+function readAmt(v, name, date) {
+  const orig = +v[name] || 0, c = v[name + 'Cur'] === 'syp' ? 'syp' : 'usd';
+  if (c === 'syp' && !rateOn(date)) return { error: 'حدد سعر صرف الدولار أولاً من الصفحة الرئيسية' };
+  return { usd: c === 'syp' ? r2(orig / rateOn(date)) : orig, cur: c, orig };
+}
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2400); };
 
@@ -98,11 +111,13 @@ const Views = {
     const p = C.pl(db, from, to), d = C.debts(db), c = C.cash(db), st = C.stock(db);
     const low = live(db, 'products').filter(x => x.track !== false && +x.minStock > 0 && st[x.id].qty <= +x.minStock);
     const isEmpty = !live(db, 'products').length && !live(db, 'sales').length;
-    const second = db.settings.currency2 && +db.settings.rate ? `<small class="num">${num(p.net * db.settings.rate)} ${esc(db.settings.currency2)}</small>` : '';
+    const lastRate = live(db, 'rates').sort((a, b) => b.date.localeCompare(a.date))[0];
+    const rateToday = lastRate && lastRate.date === today();
     const stale = !isEmpty && Date.now() - (db.settings.lastBackup || 0) > 7 * 864e5;
     return `<div class="head"><div class="head-l"><img class="logo" src="icons/icon-192.png" alt="شعار بلاستيكة"><div><h1>${esc(db.settings.company)}</h1><span class="hint">${ymName(ym())}</span> ${badge()}</div></div></div>
     ${isEmpty ? `<div class="card"><h2>أهلاً بك 👋</h2><p class="hint">ابدأ بإضافة منتجاتك وشركائك، أو جرّب البرنامج ببيانات تجريبية.</p><div class="btns"><button class="btn pri" data-act="go" data-v="products">إضافة منتجات</button>${Sync.connected() ? '' : '<button class="btn" data-act="demo">تحميل بيانات تجريبية</button>'}</div></div>` : ''}
     ${stale ? `<div class="note">لم تأخذ نسخة احتياطية منذ أكثر من أسبوع. <a href="#" data-act="backup" style="color:var(--orange)">خذ نسخة الآن</a></div>` : ''}
+    <div class="card ratebar ${rateToday ? '' : 'stale'}"><div><span class="hint" style="margin:0">سعر الصرف${lastRate ? ' · ' + lastRate.date : ''}</span><b class="num">${lastRate ? `1 ${esc(db.settings.currency)} = ${num(lastRate.rate)} ${esc(cur2())}` : 'غير محدد'}</b>${rateToday ? '' : '<span class="sub warn">لم يُحدَّث اليوم</span>'}</div><button class="btn ${rateToday ? '' : 'pri'}" data-act="setRate">تحديث السعر</button></div>
     <div class="quick">
       <button class="btn pri" data-act="newDoc" data-k="sale">${icon('sales')}بيع</button>
       <button class="btn" data-act="newDoc" data-k="purchase">${icon('buy')}شراء</button>
@@ -110,9 +125,9 @@ const Views = {
       <button class="btn" data-act="payment">${icon('money')}قبض/دفع</button>
     </div>
     <div class="kpis">
-      <div class="kpi hero"><span>صافي ربح الشهر</span><b class="${p.net < 0 ? 'neg' : ''}">${money(p.net)}</b>${second}</div>
-      <div class="kpi"><span>مبيعات الشهر</span><b>${money(p.sales)}</b><small>${p.count} فاتورة</small></div>
-      <div class="kpi"><span>الصندوق</span><b>${money(c)}</b></div>
+      <div class="kpi hero"><span>صافي ربح الشهر</span><b class="${p.net < 0 ? 'neg' : ''}">${money(p.net)}</b>${syp(p.net)}</div>
+      <div class="kpi"><span>مبيعات الشهر</span><b>${money(p.sales)}</b>${syp(p.sales)}<small>${p.count} فاتورة</small></div>
+      <div class="kpi"><span>الصندوق</span><b>${money(c)}</b>${syp(c)}</div>
       <div class="kpi"><span>قيمة المخزون</span><b>${money(C.inventoryValue(db))}</b></div>
       <div class="kpi"><span>لنا عند الزبائن</span><b>${money(d.receivable)}</b></div>
       <div class="kpi"><span>علينا للموردين</span><b>${money(d.payable)}</b></div>
@@ -135,7 +150,7 @@ const Views = {
       const s = st[p.id], lowS = p.track !== false && +p.minStock > 0 && s.qty <= +p.minStock;
       return `<button class="item" data-act="product" data-id="${p.id}"><div><b>${esc(p.name)}</b><span class="sub">${esc(p.category || '')}${p.track !== false ? ` · التكلفة ${money(s.avg)}` : ''}</span>
       ${p.track !== false ? `<span class="tag ${lowS ? 'alert' : ''}">المخزون: <span class="num">${num(s.qty)}</span> ${esc(p.unit)}</span>` : '<span class="tag">بدون مخزون</span>'}</div>
-      <div class="end"><b>${money(p.retail)}</b><span class="sub">جملة ${money(p.wholesale)}</span></div></button>`;
+      <div class="end"><b>${money(p.retail)}</b>${syp(p.retail)}<span class="sub">جملة ${money(p.wholesale)}</span></div></button>`;
     }).join('') || empty('لا توجد منتجات بعد')}</div>
     ${moves.length ? `<h2 style="margin-top:18px">آخر حركات الإنتاج والجرد</h2><div class="list">${moves.map(m => `<div class="item static"><div><b>${m.c === 'productions' ? 'إنتاج: ' + esc(pname(m.pid)) : 'جرد: ' + esc(pname(m.pid))}</b><span class="sub num">${m.date}</span><span class="sub">${m.c === 'productions' ? `استهلاك ${num(m.matQty)} ${esc((byId(db, 'products', m.matPid) || {}).unit || '')} من ${esc(pname(m.matPid))}` : esc(m.reason || '')}</span></div><div class="end"><b class="num">${m.qty > 0 ? '+' : ''}${num(m.qty)}</b><br><button class="btn danger" style="min-height:36px;padding:2px 10px" data-act="del" data-c="${m.c}" data-id="${m.id}">حذف</button></div></div>`).join('')}</div>` : ''}`;
   },
@@ -155,14 +170,14 @@ const Views = {
     return header('المصاريف', `<button class="btn pri" data-act="expense">+ مصروف</button>`) + `
     <div class="filters"><select data-filter="month" aria-label="الشهر">${monthOpts(ui.month)}</select></div>
     <div class="kpis"><div class="kpi"><span>مصاريف الشهر</span><b>${money(p.expenses)}</b></div><div class="kpi"><span>شراء معدات</span><b>${money(p.assets)}</b><small>لا تُخصم من الربح</small></div></div>
-    <div class="list">${es.map(e => `<button class="item" data-act="expense" data-id="${e.id}"><div><b>${esc(e.category)}</b><span class="sub"><span class="num">${e.date}</span> ${esc(e.note || '')}</span></div><div class="end"><b>${money(e.amount)}</b></div></button>`).join('') || empty('لا توجد مصاريف هذا الشهر')}</div>`;
+    <div class="list">${es.map(e => `<button class="item" data-act="expense" data-id="${e.id}"><div><b>${esc(e.category)}</b><span class="sub"><span class="num">${e.date}</span> ${esc(e.note || '')}</span></div><div class="end"><b>${money(e.amount)}</b>${e.cur === 'syp' ? `<small class="syp num">${num(e.orig)} ${esc(cur2())}</small>` : ''}</div></button>`).join('') || empty('لا توجد مصاريف هذا الشهر')}</div>`;
   },
 
   cash() {
     const log = C.cashLog(db).filter(x => x.date.startsWith(ui.month));
     const inn = log.filter(x => x.amount > 0).reduce((s, x) => s + x.amount, 0), out = log.filter(x => x.amount < 0).reduce((s, x) => s + x.amount, 0);
     return header('الصندوق', `<button class="btn pri" data-act="payment">قبض/دفع</button>`) + `
-    <div class="kpis"><div class="kpi hero"><span>الرصيد الحالي</span><b>${money(C.cash(db))}</b></div><div class="kpi"><span>داخل هذا الشهر</span><b class="pos">${money(inn)}</b></div><div class="kpi"><span>خارج هذا الشهر</span><b class="neg">${money(-out)}</b></div></div>
+    <div class="kpis"><div class="kpi hero"><span>الرصيد الحالي</span><b>${money(C.cash(db))}</b>${syp(C.cash(db))}</div><div class="kpi"><span>داخل هذا الشهر</span><b class="pos">${money(inn)}</b></div><div class="kpi"><span>خارج هذا الشهر</span><b class="neg">${money(-out)}</b></div></div>
     <div class="filters"><select data-filter="month" aria-label="الشهر">${monthOpts(ui.month)}</select></div>
     <div class="list">${log.map(x => `<div class="item static"><div><b>${esc(x.title)}</b><span class="sub"><span class="num">${x.date}</span> ${esc(x.note)}</span></div><div class="end"><b class="${x.amount > 0 ? 'pos' : 'neg'} num">${x.amount > 0 ? '+' : '−'}${num(Math.abs(x.amount))}</b></div></div>`).join('') || empty('لا توجد حركات هذا الشهر')}</div>`;
   },
@@ -171,17 +186,19 @@ const Views = {
     const ps = live(db, 'partners');
     const sum = r2(ps.reduce((s, p) => s + (+p.share || 0), 0));
     const existing = live(db, 'distributions').find(d => d.ym === ui.distMonth);
-    const pct = ui.reserve ?? db.settings.reservePct;
+    const pct = ui.reserve ?? (db.settings.shopPct ?? 16);
+    const shop = r2(live(db, 'distributions').reduce((x, d) => x + d.reserve, 0));
     const pv = C.distributionPreview(db, ui.distMonth, pct);
     const dists = live(db, 'distributions').sort((a, b) => b.ym.localeCompare(a.ym));
     const shown = existing || pv;
     const changed = existing && C.distributionPreview(db, existing.ym, existing.reservePct).net !== existing.net;
     return header('الشركاء والأرباح', `<button class="btn pri" data-act="partner">+ شريك</button><button class="btn" data-act="partnerTx">رأس مال / سحب</button>`) + `
     ${ps.length && sum !== 100 ? `<div class="note">مجموع نسب الشركاء <b class="num">${num(sum)}%</b> ويجب أن يكون 100% قبل تقسيم الأرباح.</div>` : ''}
+    <div class="kpi hero" style="margin-bottom:10px"><span>حساب المحل (المجموع المحتجز من الأرباح)</span><b>${money(shop)}</b>${syp(shop)}</div>
     <div class="list" style="margin-bottom:14px">${ps.map(p => { const a = C.partnerAccount(db, p); return `<button class="item" data-act="partnerView" data-id="${p.id}"><div><b>${esc(p.name)}</b> <span class="tag num">${num(p.share)}%</span><span class="sub">رأس المال ${money(a.capital)} · أرباح ${money(a.profit)} · مسحوبات ${money(a.withdrawn)}</span></div><div class="end"><b class="${a.balance < 0 ? 'neg' : ''}">${money(a.balance)}</b><span class="sub">الرصيد</span></div></button>`; }).join('') || empty('أضف الشركاء ونسبة كل واحد')}</div>
     <div class="card"><h2>تقسيم أرباح الشهر</h2>
       <div class="grid2"><label class="f">الشهر<select data-filter="distMonth">${monthOpts(ui.distMonth)}</select></label>
-      <label class="f">نسبة تبقى بالشركة %<input type="number" inputmode="decimal" id="reserve" value="${esc(existing ? existing.reservePct : pct)}" ${existing ? 'disabled' : ''}></label></div>
+      <label class="f">نسبة حساب المحل %<input type="number" inputmode="decimal" id="reserve" value="${esc(existing ? existing.reservePct : pct)}" ${existing ? 'disabled' : ''}></label></div>
       ${changed ? `<div class="note">تغيّرت أرقام هذا الشهر بعد اعتماد التقسيم (الصافي الحالي ${money(C.distributionPreview(db, existing.ym, existing.reservePct).net)}). ألغِ التقسيم واعتمده من جديد.</div>` : ''}
       <div class="rows" id="distRows">${distRows(shown)}</div>
       <div class="btns" style="margin-top:12px">${existing ? `<span class="tag" style="align-self:center">معتمد</span><button class="btn danger" data-act="del" data-c="distributions" data-id="${existing.id}">إلغاء التقسيم</button>` : `<button class="btn pri" data-act="approve">اعتماد التقسيم</button>`}<button class="btn" data-act="printDist">طباعة</button></div>
@@ -220,7 +237,7 @@ const Views = {
   settings() {
     const s = db.settings;
     return header('الإعدادات') + `<form id="setf"><div class="card"><h2>الشركة</h2><div class="grid2">${f('اسم الشركة', 'company', s.company)}${f('الهاتف', 'phone', s.phone, 'tel')}</div>${f('العنوان', 'address', s.address)}</div>
-    <div class="card"><h2>العملة والرصيد الافتتاحي</h2><div class="grid2">${f('العملة الأساسية', 'currency', s.currency)}${f('الصندوق عند البدء', 'openingCash', s.openingCash, 'number')}${f('عملة ثانية (اختياري)', 'currency2', s.currency2, 'text', 'placeholder="ل.س"')}${f('سعر الصرف', 'rate', s.rate, 'number')}</div></div>
+    <div class="card"><h2>العملة والرصيد الافتتاحي</h2><div class="grid2">${f('العملة الأساسية', 'currency', s.currency)}${f('الصندوق عند البدء', 'openingCash', s.openingCash, 'number')}${f('اسم الليرة', 'currency2', cur2())}${sel('تقريب مبالغ الليرة لأقرب', 'roundStep', [1, 10, 25, 50, 100], step())}${f('نسبة حساب المحل من ربح كل شهر %', 'shopPct', s.shopPct ?? 16, 'number')}</div><p class="hint">سعر الصرف يتحدث يومياً من الصفحة الرئيسية.</p></div>
     <div class="card"><h2>افتراضات حاسبة الطباعة</h2><div class="grid2">${f('سعر كغ الفيلامنت', 'filamentKg', s.filamentKg, 'number')}${f('اهتلاك الطابعة / ساعة', 'machineHour', s.machineHour, 'number')}${f('كهرباء / ساعة', 'powerHour', s.powerHour, 'number')}${f('نسبة الفشل %', 'failPct', s.failPct, 'number')}${f('هامش المفرق %', 'retailMarkup', s.retailMarkup, 'number')}${f('هامش الجملة %', 'wholesaleMarkup', s.wholesaleMarkup, 'number')}</div></div>
     <button class="btn pri block" style="margin-bottom:14px">حفظ الإعدادات</button></form>
     ${syncCard()}
@@ -241,8 +258,8 @@ function syncCard() {
 }
 
 function distRows(d) {
-  return `<div><span>صافي ربح ${ymName(d.ym)}</span>${money(d.net)}</div><div><span>يبقى بالشركة</span>${money(d.reserve)}</div><div class="total"><span>للتوزيع</span>${money(d.distributable)}</div>` +
-    d.shares.map(s => `<div><span>${esc(s.name)} <span class="tag num">${num(s.pct)}%</span></span>${money(s.amount)}</div>`).join('');
+  return `<div><span>صافي ربح ${ymName(d.ym)}</span>${money(d.net)}</div><div><span>لحساب المحل <span class="tag num">${num(d.reservePct)}%</span></span>${money(d.reserve)}</div><div class="total"><span>للتوزيع</span>${money(d.distributable)}</div>` +
+    d.shares.map(s => `<div><span>${esc(s.name)} <span class="tag num">${num(s.pct)}%</span></span><span>${money(s.amount)} ${syp(s.amount)}</span></div>`).join('');
 }
 
 const CH = { a: '#e06c00', b: '#3a86d8' };
@@ -286,7 +303,7 @@ function openDocForm(kind, rec) {
   ${isS ? `<label class="check"><input type="checkbox" name="ret" ${rec && rec.ret ? 'checked' : ''}> هذه الفاتورة مرتجع من زبون</label>` : ''}
   <div class="picker"><input id="pk" placeholder="ابحث عن منتج لإضافته..." autocomplete="off" aria-label="بحث عن منتج"><div class="pk-res" id="pkr"></div></div>
   <div id="lines"></div>
-  <div class="grid2">${f('خصم', 'discount', rec ? rec.discount : 0, 'number', 'id="disc"')}${f('المدفوع', 'paid', rec ? rec.paid : 0, 'number', 'id="paid"')}</div>
+  <div class="grid2">${f('خصم', 'discount', rec ? rec.discount : 0, 'number', 'id="disc"')}${curSel('paidCur', rec ? rec.paidCur : 'usd', 'id="pcur"')}</div>${f('المدفوع', 'paid', rec ? (rec.paidCur === 'syp' ? rec.paidOrig : rec.paid) : 0, 'number', 'id="paid"')}
   <div class="rows card" id="tot"></div>
   ${area('ملاحظة', 'note', rec ? rec.note : '')}`, () => saveDoc(kind, rec), delBtn(isS ? 'sales' : 'purchases', rec && rec.id));
   drawLines();
@@ -317,9 +334,10 @@ function drawLines() {
 function updateTotals() {
   if (!cur) return;
   const d = { lines: cur.lines, discount: $('#disc').value };
-  const t = docTotal(d);
-  if (!cur.paidTouched) $('#paid').value = t;
-  const rem = r2(t - (+$('#paid').value || 0));
+  const t = docTotal(d), date = $('#mf').elements.date.value, inSyp = $('#pcur').value === 'syp';
+  if (!cur.paidTouched) $('#paid').value = inSyp ? (toSyp(t, date) ?? 0) : t;
+  const paidUsd = inSyp ? (rateOn(date) ? (+$('#paid').value || 0) / rateOn(date) : 0) : (+$('#paid').value || 0);
+  const rem = Math.abs(paidUsd - t) <= step() / (rateOn(date) || Infinity) ? 0 : r2(t - paidUsd);
   let extra = '';
   if (cur.kind === 'sale') {
     const st = C.stock(db);
@@ -331,7 +349,7 @@ function updateTotals() {
       if (w) w.textContent = !isRet && p && p.track !== false && +l.qty > st[l.pid].qty ? `المتوفر ${num(st[l.pid].qty)} فقط` : '';
     });
   }
-  $('#tot').innerHTML = `<div class="total"><span>الإجمالي</span>${money(t)}</div><div><span>الباقي</span>${money(rem)}</div>${extra}`;
+  $('#tot').innerHTML = `<div class="total"><span>الإجمالي</span><span>${money(t)} ${syp(t, date)}</span></div><div><span>الباقي</span><span>${money(rem)} ${syp(rem, date)}</span></div>${extra}${rateOn(date) ? '' : '<div class="warn">لم يتم تحديد سعر الصرف</div>'}`;
 }
 function resolveContact(name, kind) {
   name = name.trim();
@@ -344,15 +362,19 @@ function saveDoc(kind, rec) {
   if (!v.date) return fail('اختر التاريخ');
   if (!cur.lines.length) return fail('أضف منتجاً واحداً على الأقل');
   if (cur.lines.some(l => !(+l.qty > 0) || +l.price < 0)) return fail('تحقق من الكميات والأسعار');
-  const discount = +v.discount || 0, paid = +v.paid || 0;
+  const discount = +v.discount || 0, amt = readAmt(v, 'paid', v.date);
+  if (amt.error) return fail(amt.error);
+  let paid = amt.usd;
   if (discount < 0 || paid < 0) return fail('الخصم والمدفوع لا يمكن أن يكونا بالسالب');
   const total = docTotal({ lines: cur.lines, discount });
+  // Rounded lira payments count as paying the invoice in full.
+  if (amt.cur === 'syp' && Math.abs(paid - total) <= step() / rateOn(v.date)) paid = total;
   if (total < 0) return fail('الخصم أكبر من قيمة الفاتورة');
   if (paid > total) return fail('المدفوع أكبر من إجمالي الفاتورة');
   if (paid < total && !v.contact.trim()) return fail(`اكتب اسم ${isS ? 'الزبون' : 'المورد'} لتسجيل الباقي دَيناً عليه`);
   const st = isS ? C.stock(db, v.date) : null;
   const lines = cur.lines.map(l => ({ ...l, qty: +l.qty, price: +l.price, ...(isS ? { cost: Math.round((st[l.pid] ? st[l.pid].avg : l.cost || 0) * 1e4) / 1e4 } : {}) }));
-  const doc = { date: v.date, contactId: resolveContact(v.contact, isS ? 'customer' : 'supplier'), discount, paid, note: v.note, lines };
+  const doc = { date: v.date, contactId: resolveContact(v.contact, isS ? 'customer' : 'supplier'), discount, paid, paidCur: amt.cur, paidOrig: amt.orig, rate: rateOn(v.date), note: v.note, lines };
   if (isS) { doc.mode = v.mode; doc.ret = !!v.ret; }
   if (rec) doc.id = rec.id; else doc.no = nextNo(coll);
   const saved = upsert(coll, doc);
@@ -361,12 +383,13 @@ function saveDoc(kind, rec) {
   return true;
 }
 
+function invSyp(s, usd) { const r = +s.rate || rateOn(s.date); return r ? `${num(Math.round(usd * r / step()) * step())} ${cur2()}` : ''; }
 function invoiceHtml(s) {
   const c = byId(db, 'contacts', s.contactId), t = docTotal(s), rem = r2(t - (+s.paid || 0)), S = db.settings;
   return `<div class="inv"><div class="inv-h"><div><h2 style="margin:0">${esc(S.company)}</h2><div class="sub num">${esc(S.phone)}</div><div class="sub">${esc(S.address)}</div></div><img src="icons/icon-192.png" alt=""></div>
   <div class="rows"><div><span>${s.ret ? 'إشعار مرتجع' : 'فاتورة'} رقم</span><b class="num">${s.no}</b></div><div><span>التاريخ</span><span class="num">${s.date}</span></div><div><span>الزبون</span><span>${esc(c ? c.name : 'زبون نقدي')}</span></div></div>
   <div class="table" style="margin:10px 0"><table><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>المجموع</th></tr>${s.lines.map(l => `<tr><td style="white-space:normal">${esc(l.name)}</td><td class="num">${num(l.qty)}</td><td class="num">${num(l.price)}</td><td class="num">${num(l.qty * l.price)}</td></tr>`).join('')}</table></div>
-  <div class="rows">${+s.discount ? `<div><span>الخصم</span>${money(s.discount)}</div>` : ''}<div class="total"><span>الإجمالي</span>${money(t)}</div>${S.currency2 && +S.rate ? `<div><span>بالعملة الثانية</span><span class="num">${num(t * S.rate)} ${esc(S.currency2)}</span></div>` : ''}<div><span>المدفوع</span>${money(s.paid)}</div><div><span>الباقي</span>${money(rem)}</div></div>${s.note ? `<p class="hint">${esc(s.note)}</p>` : ''}</div>`;
+  <div class="rows">${+s.discount ? `<div><span>الخصم</span>${money(s.discount)}</div>` : ''}<div class="total"><span>الإجمالي</span>${money(t)}</div>${invSyp(s, t) ? `<div><span>بالليرة <small class="sub num">(سعر ${num(s.rate || rateOn(s.date))})</small></span><b class="num">${esc(invSyp(s, t))}</b></div>` : ''}<div><span>المدفوع</span><span>${s.paidCur === 'syp' ? `<span class="num">${num(s.paidOrig)} ${esc(cur2())}</span>` : money(s.paid)}</span></div><div><span>الباقي</span>${money(rem)}</div></div>${s.note ? `<p class="hint">${esc(s.note)}</p>` : ''}</div>`;
 }
 function showInvoice(s) {
   modal(`فاتورة #${s.no}`, invoiceHtml(s), null, `<button type="button" class="btn pri" data-act="printInv" data-id="${s.id}">طباعة / PDF</button><button type="button" class="btn" data-act="waInv" data-id="${s.id}">واتساب</button><button type="button" class="btn" data-act="editDoc" data-k="sale" data-id="${s.id}">تعديل</button>`);
@@ -389,6 +412,7 @@ function markBackup() { db.settings.lastBackup = Date.now(); saveNow(); }
 // ---------- demo ----------
 function loadDemo() {
   const d = C.blank(); d.settings = { ...db.settings, openingCash: 500 };
+  d.rates.push({ id: uid(), createdAt: Date.now(), updatedAt: Date.now(), date: shiftYm(ym(), -6) + '-01', rate: 110 });
   const mk = (coll, o, t = Date.now()) => { const r = { id: uid(), createdAt: t, updatedAt: t, ...o }; d[coll].push(r); return r; };
   const pla = mk('products', { name: 'فيلامنت PLA أسود', category: 'فيلامنت', unit: 'كغ', sku: 'PLA-BK', cost: 18, stock: 5, retail: 30, wholesale: 25, minStock: 3, track: true });
   const vase = mk('products', { name: 'مزهرية حلزونية', category: 'منتج جاهز', unit: 'قطعة', sku: 'VS-01', cost: 0, stock: 0, retail: 15, wholesale: 10, minStock: 3, track: true });
@@ -428,6 +452,16 @@ const A = {
   close: closeModal,
   moreMenu() { modal('القائمة', `<div class="list">${NAV.map(([v, t, i]) => `<button type="button" class="item" data-act="go" data-v="${v}"><div style="display:flex;gap:10px;align-items:center">${icon(i)}<b>${t}</b></div></button>`).join('')}</div>`); },
   demo: loadDemo,
+  setRate() {
+    const last = live(db, 'rates').sort((a, b) => b.date.localeCompare(a.date))[0];
+    modal('سعر صرف الدولار', `${f('التاريخ', 'date', today(), 'date')}${f(`سعر 1 ${esc(db.settings.currency)} بالليرة`, 'rate', last ? last.rate : '', 'number', 'autofocus')}<p class="hint">يُستخدم لكل الحركات بهذا التاريخ وما بعده حتى تحدّثه من جديد. الفواتير القديمة تحتفظ بسعر يومها.</p>`, () => {
+      const v = formData();
+      if (!v.date || !(+v.rate > 0)) return fail('أدخل السعر والتاريخ');
+      const ex = live(db, 'rates').find(r => r.date === v.date);
+      upsert('rates', { ...(ex ? { id: ex.id } : {}), date: v.date, rate: +v.rate });
+      closeModal(); save(); toast('تم تحديث السعر'); return true;
+    });
+  },
   readout(d) { $('#readout').textContent = d.t; },
   newDoc(d) { openDocForm(d.k); },
   openDoc(d) { const coll = d.k === 'sale' ? 'sales' : 'purchases', r = byId(db, coll, d.id); if (d.k === 'sale') showInvoice(r); else openDocForm('purchase', r); },
@@ -438,7 +472,7 @@ const A = {
   printInv(d) { printHtml(invoiceHtml(byId(db, 'sales', d.id))); },
   waInv(d) {
     const s = byId(db, 'sales', d.id), c = byId(db, 'contacts', s.contactId), t = docTotal(s);
-    const txt = `${db.settings.company}\nفاتورة #${s.no} - ${s.date}\n` + s.lines.map(l => `${l.name} × ${num(l.qty)} = ${plain(l.qty * l.price)}`).join('\n') + `\nالإجمالي: ${plain(t)}\nالمدفوع: ${plain(s.paid)}\nالباقي: ${plain(t - s.paid)}`;
+    const txt = `${db.settings.company}\nفاتورة #${s.no} - ${s.date}\n` + s.lines.map(l => `${l.name} × ${num(l.qty)} = ${plain(l.qty * l.price)}`).join('\n') + `\nالإجمالي: ${plain(t)}${invSyp(s, t) ? ' = ' + invSyp(s, t) : ''}\nالمدفوع: ${s.paidCur === 'syp' ? num(s.paidOrig) + ' ' + cur2() : plain(s.paid)}\nالباقي: ${plain(t - s.paid)}`;
     const phone = c && c.phone ? c.phone.replace(/\D/g, '') : '';
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(txt)}`, '_blank', 'noopener');
   },
@@ -526,19 +560,22 @@ const A = {
     const cs = live(db, 'contacts');
     if (!cs.length) return toast('أضف زبوناً أو مورداً أولاً');
     const c = d.c ? byId(db, 'contacts', d.c) : null;
-    modal('قبض أو دفع', `${f('التاريخ', 'date', today(), 'date')}${sel('الجهة', 'contactId', cs.map(x => [x.id, `${x.name} (${x.kind === 'customer' ? 'زبون' : 'مورد'}) - ${plain(C.contactBalance(db, x))}`]), c ? c.id : '')}${sel('النوع', 'dir', [['in', 'قبض (داخل للصندوق)'], ['out', 'دفع (خارج من الصندوق)']], c && c.kind === 'supplier' ? 'out' : 'in')}${f('المبلغ', 'amount', '', 'number')}${f('ملاحظة', 'note')}`, () => {
-      const v = formData();
-      if (!(+v.amount > 0) || !v.date) return fail('أدخل المبلغ والتاريخ');
-      upsert('payments', { date: v.date, contactId: v.contactId, dir: v.dir, amount: +v.amount, note: v.note });
+    modal('قبض أو دفع', `${f('التاريخ', 'date', today(), 'date')}${sel('الجهة', 'contactId', cs.map(x => [x.id, `${x.name} (${x.kind === 'customer' ? 'زبون' : 'مورد'}) - ${plain(C.contactBalance(db, x))}`]), c ? c.id : '')}${sel('النوع', 'dir', [['in', 'قبض (داخل للصندوق)'], ['out', 'دفع (خارج من الصندوق)']], c && c.kind === 'supplier' ? 'out' : 'in')}<div class="grid2">${f('المبلغ', 'amount', '', 'number')}${curSel('amountCur', 'usd')}</div>${f('ملاحظة', 'note')}`, () => {
+      const v = formData(), a = readAmt(v, 'amount', v.date);
+      if (a.error) return fail(a.error);
+      if (!(a.usd > 0) || !v.date) return fail('أدخل المبلغ والتاريخ');
+      upsert('payments', { date: v.date, contactId: v.contactId, dir: v.dir, amount: a.usd, cur: a.cur, orig: a.orig, note: v.note });
       closeModal(); save(); toast('تم التسجيل'); return true;
     });
   },
   expense(d) {
     const e = d.id ? byId(db, 'expenses', d.id) : null;
-    modal(e ? 'تعديل مصروف' : 'مصروف جديد', `${f('التاريخ', 'date', e ? e.date : today(), 'date')}${sel('البند', 'category', [...EXP_CATS, ASSET_CAT], e ? e.category : EXP_CATS[0])}${f('المبلغ', 'amount', e ? e.amount : '', 'number')}${f('ملاحظة', 'note', e ? e.note : '')}<p class="hint">بند «${ASSET_CAT}» (مثل شراء طابعة) يخرج من الصندوق ولا يُخصم من ربح الشهر.</p>`, () => {
+    modal(e ? 'تعديل مصروف' : 'مصروف جديد', `${f('التاريخ', 'date', e ? e.date : today(), 'date')}${sel('البند', 'category', [...EXP_CATS, ASSET_CAT], e ? e.category : EXP_CATS[0])}<div class="grid2">${f('المبلغ', 'amount', e ? (e.cur === 'syp' ? e.orig : e.amount) : '', 'number')}${curSel('amountCur', e ? e.cur : 'syp')}</div>${f('ملاحظة', 'note', e ? e.note : '')}<p class="hint">بند «${ASSET_CAT}» (مثل شراء طابعة) يخرج من الصندوق ولا يُخصم من ربح الشهر.</p>`, () => {
       const v = formData();
-      if (!(+v.amount > 0) || !v.date) return fail('أدخل المبلغ والتاريخ');
-      const r = { date: v.date, category: v.category, amount: +v.amount, note: v.note, asset: v.category === ASSET_CAT }; if (d.id) r.id = d.id;
+      const a = readAmt(v, 'amount', v.date);
+      if (a.error) return fail(a.error);
+      if (!(a.usd > 0) || !v.date) return fail('أدخل المبلغ والتاريخ');
+      const r = { date: v.date, category: v.category, amount: a.usd, cur: a.cur, orig: a.orig, note: v.note, asset: v.category === ASSET_CAT }; if (d.id) r.id = d.id;
       upsert('expenses', r); closeModal(); save(); toast('تم الحفظ'); return true;
     }, delBtn('expenses', d.id));
   },
@@ -562,10 +599,11 @@ const A = {
   partnerTx(d) {
     const ps = live(db, 'partners');
     if (!ps.length) return toast('أضف شريكاً أولاً');
-    modal('حركة شريك', `${f('التاريخ', 'date', today(), 'date')}${sel('الشريك', 'partnerId', ps.map(p => [p.id, p.name]), d.id || '')}${sel('النوع', 'type', [['withdraw', 'سحب / استلام أرباح'], ['capital', 'إضافة رأس مال']], 'withdraw')}${f('المبلغ', 'amount', '', 'number')}${f('ملاحظة', 'note')}`, () => {
-      const v = formData();
-      if (!(+v.amount > 0) || !v.date) return fail('أدخل المبلغ والتاريخ');
-      upsert('partnerTx', { date: v.date, partnerId: v.partnerId, type: v.type, amount: +v.amount, note: v.note });
+    modal('حركة شريك', `${f('التاريخ', 'date', today(), 'date')}${sel('الشريك', 'partnerId', ps.map(p => [p.id, p.name]), d.id || '')}${sel('النوع', 'type', [['withdraw', 'سحب / استلام أرباح'], ['capital', 'إضافة رأس مال']], 'withdraw')}<div class="grid2">${f('المبلغ', 'amount', '', 'number')}${curSel('amountCur', 'usd')}</div>${f('ملاحظة', 'note')}`, () => {
+      const v = formData(), a = readAmt(v, 'amount', v.date);
+      if (a.error) return fail(a.error);
+      if (!(a.usd > 0) || !v.date) return fail('أدخل المبلغ والتاريخ');
+      upsert('partnerTx', { date: v.date, partnerId: v.partnerId, type: v.type, amount: a.usd, cur: a.cur, orig: a.orig, note: v.note });
       closeModal(); save(); toast('تم التسجيل'); return true;
     });
   },
@@ -648,6 +686,8 @@ dlg.addEventListener('change', e => {
   const t = e.target;
   if (t.id === 'mode') { cur.lines.forEach(l => { const p = byId(db, 'products', l.pid); if (p) l.price = linePrice(p); }); drawLines(); }
   if (t.name === 'ret') updateTotals();
+  if (t.id === 'pcur') { cur.paidTouched = false; updateTotals(); }
+  if (cur && t.name === 'date' && $('#pcur')) updateTotals();
 });
 $('#view').addEventListener('input', e => {
   const t = e.target;
@@ -667,7 +707,7 @@ $('#view').addEventListener('submit', async e => {
   }
   if (e.target.id !== 'setf') return;
   const v = Object.fromEntries(new FormData(e.target).entries());
-  ['openingCash', 'rate', 'filamentKg', 'machineHour', 'powerHour', 'failPct', 'retailMarkup', 'wholesaleMarkup'].forEach(k => (v[k] = +v[k] || 0));
+  ['openingCash', 'roundStep', 'shopPct', 'filamentKg', 'machineHour', 'powerHour', 'failPct', 'retailMarkup', 'wholesaleMarkup'].forEach(k => (v[k] = +v[k] || 0));
   db.settings = { ...db.settings, ...v, updatedAt: Date.now() }; save(); toast('تم الحفظ');
 });
 $('#file').addEventListener('change', async e => {

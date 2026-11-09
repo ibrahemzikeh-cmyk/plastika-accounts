@@ -135,3 +135,8 @@ summary { cursor: pointer; font-weight: 600; color: var(--orange); min-height: 3
   #print .rows div { border-color: #bbb; }
   #print .sub, #print .hint { color: #444; }
 }
+.syp { display: block; color: var(--muted); font-size: .8rem; font-weight: 400; }
+.rows .syp { display: inline; margin-inline-start: 6px; }
+.ratebar { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.ratebar b { display: block; font-size: 1.15rem; }
+.ratebar.stale { border-color: var(--orange); }
