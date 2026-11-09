@@ -2,7 +2,10 @@
 // Requires supabase-setup.sql to have been run on the project.
 globalThis.Sync = (() => {
   // Fill these once the project exists so that partners only need to sign in.
-  const PROJECT = { url: '', key: '' };
+  const PROJECT = {
+    url: 'https://urrnczuenavufxrqypum.supabase.co',
+    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVycm5jenVlbmF2dWZ4cnF5cHVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQyNTUyNzksImV4cCI6MjEwOTgzMTI3OX0.ceN997ahd4H78jPULloaWmHr8EVO2kYrWCat160M330'
+  };
   const STORE = 'plastika-sync', BATCH = 400, PAGE = 1000, OVERLAP_MS = 10000, POLL_MS = 15000;
   const LABELS = { idle: 'متزامن', syncing: 'جارٍ المزامنة', offline: 'بدون نت', error: 'خطأ بالمزامنة', auth: 'سجّل الدخول' };
 
