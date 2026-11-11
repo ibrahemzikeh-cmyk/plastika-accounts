@@ -308,7 +308,7 @@ function openDocForm(kind, rec) {
   const names = live(db, 'contacts').filter(x => x.kind === (isS ? 'customer' : 'supplier')).map(x => `<option value="${esc(x.name)}">`).join('');
   modal(rec ? `تعديل فاتورة #${rec.no}` : (isS ? 'فاتورة بيع' : 'فاتورة شراء'), `
   <div class="grid2">${f('التاريخ', 'date', rec ? rec.date : today(), 'date')}${isS ? sel('نوع السعر', 'mode', [['retail', 'مفرق'], ['wholesale', 'جملة']], rec ? rec.mode : 'retail', 'id="mode"') : ''}</div>
-  <label class="f">${isS ? 'الزبون (اتركه فارغاً للنقدي)' : 'المورد'}<input name="contact" list="cl" value="${esc(c ? c.name : '')}" autocomplete="off"><datalist id="cl">${names}</datalist></label>
+  <label class="f">${isS ? 'اسم الزبون (يظهر على الفاتورة)' : 'المورد'}<input name="contact" list="cl" value="${esc(c ? c.name : '')}" autocomplete="off" ${isS ? 'placeholder="مثلاً: أبو محمد - اتركه فارغاً لزبون نقدي"' : ''}><datalist id="cl">${names}</datalist></label>
   ${isS ? `<label class="check"><input type="checkbox" name="ret" ${rec && rec.ret ? 'checked' : ''}> هذه الفاتورة مرتجع من زبون</label>` : ''}
   <div class="picker"><input id="pk" placeholder="ابحث عن منتج لإضافته..." autocomplete="off" aria-label="بحث عن منتج"><div class="pk-res" id="pkr"></div></div>
   <div id="lines"></div>
@@ -396,7 +396,7 @@ function invSyp(s, usd) { const r = +s.rate || rateOn(s.date); return r ? `${num
 function invoiceHtml(s) {
   const c = byId(db, 'contacts', s.contactId), t = docTotal(s), rem = r2(t - (+s.paid || 0)), S = db.settings;
   return `<div class="inv"><div class="inv-h"><div><h2 style="margin:0">${esc(S.company)}</h2><div class="sub num">${esc(companyPhone())}</div><div class="sub">${esc(S.address)}</div></div><img src="icons/icon-192.png" alt=""></div>
-  <div class="rows"><div><span>${s.ret ? 'إشعار مرتجع' : 'فاتورة'} رقم</span><b class="num">${s.no}</b></div><div><span>التاريخ</span><span class="num">${s.date}</span></div><div><span>الزبون</span><span>${esc(c ? c.name : 'زبون نقدي')}</span></div></div>
+  <div class="rows"><div><span>${s.ret ? 'إشعار مرتجع' : 'فاتورة'} رقم</span><b class="num">${s.no}</b></div><div><span>التاريخ</span><span class="num">${s.date}</span></div><div><span>الزبون</span><b>${esc(c ? c.name : 'زبون نقدي')}${c && c.phone ? ` <span class="sub num">${esc(c.phone)}</span>` : ''}</b></div></div>
   <div class="table" style="margin:10px 0"><table><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>المجموع</th></tr>${s.lines.map(l => `<tr><td style="white-space:normal">${esc(l.name)}</td><td class="num">${num(l.qty)}</td><td class="num">${num(l.price)}</td><td class="num">${num(l.qty * l.price)}</td></tr>`).join('')}</table></div>
   <div class="rows">${+s.discount ? `<div><span>الخصم</span>${money(s.discount)}</div>` : ''}<div class="total"><span>الإجمالي</span>${money(t)}</div>${invSyp(s, t) ? `<div><span>بالليرة <small class="sub num">(سعر ${num(s.rate || rateOn(s.date))})</small></span><b class="num">${esc(invSyp(s, t))}</b></div>` : ''}<div><span>المدفوع</span><span>${s.paidCur === 'syp' ? `<span class="num">${num(s.paidOrig)} ${esc(cur2())}</span>` : money(s.paid)}</span></div><div><span>الباقي</span>${money(rem)}</div></div>${s.note ? `<p class="hint">${esc(s.note)}</p>` : ''}</div>`;
 }
@@ -442,7 +442,8 @@ async function invoiceImage(s) {
   text('#' + s.no, P, y, { size: 50, weight: 700, color: ORANGE, align: 'left', dir: 'ltr' });
   y += 62; text(`التاريخ: ${s.date}`, W - P, y, { size: 30, color: '#444' });
   text(s.mode === 'wholesale' ? 'سعر جملة' : 'سعر مفرق', P, y, { size: 30, color: '#444', align: 'left' });
-  y += 50; text(`الزبون: ${c ? c.name : 'زبون نقدي'}`, W - P, y, { size: 30, color: '#444', max: W - 2 * P });
+  y += 54; text(`الزبون: ${c ? c.name : 'زبون نقدي'}`, W - P, y, { size: 36, weight: 700, max: W - 2 * P - 280 });
+  if (c && c.phone) text(c.phone, P, y, { size: 30, color: '#444', align: 'left', dir: 'ltr' });
   // table
   y += 38;
   const cName = W - P - 20, cQty = 470, cPrice = 320, cSum = P + 20;
