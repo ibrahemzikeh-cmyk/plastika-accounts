@@ -66,10 +66,10 @@ const P = {
   home: 'M3 11l9-8 9 8M5 10v10h14V10M10 20v-6h4v6', sales: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4', buy: 'M3 4h2l2.4 12h11l2-8H6.4M9 21h.01M18 21h.01',
   box: 'M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8', users: 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8M22 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8',
   money: 'M3 6h18v12H3zM12 15a3 3 0 100-6 3 3 0 000 6M6 9v.01M18 15v.01', exp: 'M12 2v20M17 6H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6', part: 'M8 12a4 4 0 100-8 4 4 0 000 8M16 12a4 4 0 100-8 4 4 0 000 8M2 21c0-4 3-6 6-6s6 2 6 6M14 15.5c3.5-1 8 1 8 5.5',
-  chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2', gear: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.9l.1.1-2 3.4-.2-.1a1.7 1.7 0 00-2 .4 1.7 1.7 0 00-.6 1.3H11a1.7 1.7 0 00-.6-1.3 1.7 1.7 0 00-2-.4l-.2.1-2-3.4.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1V10a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1 2-3.4.2.1a1.7 1.7 0 002-.4A1.7 1.7 0 0011 2h4a1.7 1.7 0 00.6 1.3 1.7 1.7 0 002 .4l.2-.1 2 3.4-.1.1a1.7 1.7 0 00-.3 1.9 1.7 1.7 0 001.5 1v4a1.7 1.7 0 00-1.5 1z', more: 'M4 6h16M4 12h16M4 18h16'
+  chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2', gear: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.9l.1.1-2 3.4-.2-.1a1.7 1.7 0 00-2 .4 1.7 1.7 0 00-.6 1.3H11a1.7 1.7 0 00-.6-1.3 1.7 1.7 0 00-2-.4l-.2.1-2-3.4.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1V10a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1 2-3.4.2.1a1.7 1.7 0 002-.4A1.7 1.7 0 0011 2h4a1.7 1.7 0 00.6 1.3 1.7 1.7 0 002 .4l.2-.1 2 3.4-.1.1a1.7 1.7 0 00-.3 1.9 1.7 1.7 0 001.5 1v4a1.7 1.7 0 00-1.5 1z', more: 'M4 6h16M4 12h16M4 18h16', calc: 'M5 2h14v20H5zM8 6h8v4H8zM8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01'
 };
 const icon = n => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="${P[n]}"/></svg>`;
-const NAV = [['home', 'الرئيسية', 'home'], ['sales', 'المبيعات', 'sales'], ['purchases', 'المشتريات', 'buy'], ['products', 'المنتجات والأسعار', 'box'], ['contacts', 'العملاء والموردون', 'users'], ['expenses', 'المصاريف', 'exp'], ['cash', 'الصندوق', 'money'], ['partners', 'الشركاء والأرباح', 'part'], ['reports', 'التقارير', 'chart'], ['settings', 'الإعدادات', 'gear']];
+const NAV = [['home', 'الرئيسية', 'home'], ['sales', 'المبيعات', 'sales'], ['purchases', 'المشتريات', 'buy'], ['products', 'المنتجات والأسعار', 'box'], ['pricing', 'حاسبة التسعير', 'calc'], ['contacts', 'العملاء والموردون', 'users'], ['expenses', 'المصاريف', 'exp'], ['cash', 'الصندوق', 'money'], ['partners', 'الشركاء والأرباح', 'part'], ['reports', 'التقارير', 'chart'], ['settings', 'الإعدادات', 'gear']];
 const BOTTOM = [['home', 'الرئيسية', 'home'], ['sales', 'المبيعات', 'sales'], ['products', 'المنتجات', 'box'], ['partners', 'الشركاء', 'part']];
 
 const badge = () => { const st = Sync.status(); return `<span class="sync-badge" data-s="${st.state}">${st.label}</span>`; };
@@ -78,7 +78,7 @@ function renderNav() {
   const inBottom = BOTTOM.some(b => b[0] === view);
   $('#bottom').innerHTML = BOTTOM.map(([v, t, i]) => `<button class="${v === view ? 'on' : ''}" data-act="go" data-v="${v}">${icon(i)}${t}</button>`).join('') + `<button class="${inBottom ? '' : 'on'}" data-act="moreMenu">${icon('more')}المزيد</button>`;
 }
-function render() { renderNav(); $('#view').innerHTML = Views[view](); }
+function render() { renderNav(); $('#view').innerHTML = Views[view](); if (view === 'pricing') calc($('#calcf')); }
 
 const header = (title, btns = '') => `<div class="head"><h1>${title}</h1><div class="btns">${btns}</div></div>`;
 const empty = t => `<div class="empty">${t}</div>`;
@@ -144,7 +144,7 @@ const Views = {
     const ps = live(db, 'products').filter(p => (!ui.cat || p.category === ui.cat) && (!q || (p.name + ' ' + (p.sku || '')).toLowerCase().includes(q))).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
     const moves = [...live(db, 'productions').map(x => ({ ...x, c: 'productions' })), ...live(db, 'adjustments').map(x => ({ ...x, c: 'adjustments' }))].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt).slice(0, 15);
     const pname = id => (byId(db, 'products', id) || {}).name || '—';
-    return header('المنتجات والأسعار', `<button class="btn pri" data-act="product">+ منتج</button><button class="btn" data-act="production">طباعة/إنتاج</button><button class="btn" data-act="adjust">تعديل جرد</button>`) + `
+    return header('المنتجات والأسعار', `<button class="btn pri" data-act="product">+ منتج</button><button class="btn" data-act="go" data-v="pricing">حاسبة</button><button class="btn" data-act="production">طباعة/إنتاج</button><button class="btn" data-act="adjust">تعديل جرد</button>`) + `
     <div class="filters"><input placeholder="بحث بالاسم أو الرمز" value="${esc(ui.q)}" data-filter="q" aria-label="بحث"><select data-filter="cat" aria-label="التصنيف"><option value="">كل التصنيفات</option>${CATS.map(c => `<option ${c === ui.cat ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
     <div class="list">${ps.map(p => {
       const s = st[p.id], lowS = p.track !== false && +p.minStock > 0 && s.qty <= +p.minStock;
@@ -153,6 +153,15 @@ const Views = {
       <div class="end"><b>${money(p.retail)}</b>${syp(p.retail)}<span class="sub">جملة ${money(p.wholesale)}</span></div></button>`;
     }).join('') || empty('لا توجد منتجات بعد')}</div>
     ${moves.length ? `<h2 style="margin-top:18px">آخر حركات الإنتاج والجرد</h2><div class="list">${moves.map(m => `<div class="item static"><div><b>${m.c === 'productions' ? 'إنتاج: ' + esc(pname(m.pid)) : 'جرد: ' + esc(pname(m.pid))}</b><span class="sub num">${m.date}</span><span class="sub">${m.c === 'productions' ? `استهلاك ${num(m.matQty)} ${esc((byId(db, 'products', m.matPid) || {}).unit || '')} من ${esc(pname(m.matPid))}` : esc(m.reason || '')}</span></div><div class="end"><b class="num">${m.qty > 0 ? '+' : ''}${num(m.qty)}</b><br><button class="btn danger" style="min-height:36px;padding:2px 10px" data-act="del" data-c="${m.c}" data-id="${m.id}">حذف</button></div></div>`).join('')}</div>` : ''}`;
+  },
+
+  pricing() {
+    const ps = live(db, 'products').sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+    return header('حاسبة التسعير') + `<form id="calcf" class="card">${f('اسم القطعة (اختياري)', 'c_name', '')}${calcFields(db.settings)}
+    <div class="rows calcR"></div>
+    <div class="btns" style="margin-top:12px"><button type="button" class="btn pri" data-act="calcNew">حفظ كمنتج جديد</button></div>
+    ${ps.length ? `<div class="grid2" style="margin-top:14px;align-items:end">${sel('أو طبّق السعرين على منتج موجود', 'c_pid', ps.map(p => [p.id, p.name]))}<button type="button" class="btn" data-act="calcApply" style="margin-bottom:10px">تطبيق</button></div>` : ''}
+    </form><p class="hint">الحاسبة للتسعير فقط. الكهرباء والإيجار الفعليان تسجلهما بالمصاريف. القيم الافتراضية تتغير من الإعدادات.</p>`;
   },
 
   contacts() {
@@ -236,7 +245,7 @@ const Views = {
 
   settings() {
     const s = db.settings;
-    return header('الإعدادات') + `<form id="setf"><div class="card"><h2>الشركة</h2><div class="grid2">${f('اسم الشركة', 'company', s.company)}${f('الهاتف', 'phone', s.phone, 'tel')}</div>${f('العنوان', 'address', s.address)}</div>
+    return header('الإعدادات') + `<form id="setf"><div class="card"><h2>الشركة</h2><div class="grid2">${f('اسم الشركة', 'company', s.company)}${f('الهاتف', 'phone', companyPhone(), 'tel')}</div>${f('العنوان', 'address', s.address)}</div>
     <div class="card"><h2>العملة والرصيد الافتتاحي</h2><div class="grid2">${f('العملة الأساسية', 'currency', s.currency)}${f('الصندوق عند البدء', 'openingCash', s.openingCash, 'number')}${f('اسم الليرة', 'currency2', cur2())}${sel('تقريب مبالغ الليرة لأقرب', 'roundStep', [1, 10, 25, 50, 100], step())}${f('نسبة حساب المحل من ربح كل شهر %', 'shopPct', s.shopPct ?? 16, 'number')}</div><p class="hint">سعر الصرف يتحدث يومياً من الصفحة الرئيسية.</p></div>
     <div class="card"><h2>افتراضات حاسبة الطباعة</h2><div class="grid2">${f('سعر كغ الفيلامنت', 'filamentKg', s.filamentKg, 'number')}${f('اهتلاك الطابعة / ساعة', 'machineHour', s.machineHour, 'number')}${f('كهرباء / ساعة', 'powerHour', s.powerHour, 'number')}${f('نسبة الفشل %', 'failPct', s.failPct, 'number')}${f('هامش المفرق %', 'retailMarkup', s.retailMarkup, 'number')}${f('هامش الجملة %', 'wholesaleMarkup', s.wholesaleMarkup, 'number')}</div></div>
     <button class="btn pri block" style="margin-bottom:14px">حفظ الإعدادات</button></form>
@@ -386,13 +395,97 @@ function saveDoc(kind, rec) {
 function invSyp(s, usd) { const r = +s.rate || rateOn(s.date); return r ? `${num(Math.round(usd * r / step()) * step())} ${cur2()}` : ''; }
 function invoiceHtml(s) {
   const c = byId(db, 'contacts', s.contactId), t = docTotal(s), rem = r2(t - (+s.paid || 0)), S = db.settings;
-  return `<div class="inv"><div class="inv-h"><div><h2 style="margin:0">${esc(S.company)}</h2><div class="sub num">${esc(S.phone)}</div><div class="sub">${esc(S.address)}</div></div><img src="icons/icon-192.png" alt=""></div>
+  return `<div class="inv"><div class="inv-h"><div><h2 style="margin:0">${esc(S.company)}</h2><div class="sub num">${esc(companyPhone())}</div><div class="sub">${esc(S.address)}</div></div><img src="icons/icon-192.png" alt=""></div>
   <div class="rows"><div><span>${s.ret ? 'إشعار مرتجع' : 'فاتورة'} رقم</span><b class="num">${s.no}</b></div><div><span>التاريخ</span><span class="num">${s.date}</span></div><div><span>الزبون</span><span>${esc(c ? c.name : 'زبون نقدي')}</span></div></div>
   <div class="table" style="margin:10px 0"><table><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>المجموع</th></tr>${s.lines.map(l => `<tr><td style="white-space:normal">${esc(l.name)}</td><td class="num">${num(l.qty)}</td><td class="num">${num(l.price)}</td><td class="num">${num(l.qty * l.price)}</td></tr>`).join('')}</table></div>
   <div class="rows">${+s.discount ? `<div><span>الخصم</span>${money(s.discount)}</div>` : ''}<div class="total"><span>الإجمالي</span>${money(t)}</div>${invSyp(s, t) ? `<div><span>بالليرة <small class="sub num">(سعر ${num(s.rate || rateOn(s.date))})</small></span><b class="num">${esc(invSyp(s, t))}</b></div>` : ''}<div><span>المدفوع</span><span>${s.paidCur === 'syp' ? `<span class="num">${num(s.paidOrig)} ${esc(cur2())}</span>` : money(s.paid)}</span></div><div><span>الباقي</span>${money(rem)}</div></div>${s.note ? `<p class="hint">${esc(s.note)}</p>` : ''}</div>`;
 }
+const companyPhone = () => db.settings.phone || '0992246408';
+const LOGO = new Image(); LOGO.src = 'icons/icon-512.png';
+const FONT = '"Segoe UI", Tahoma, "SF Arabic", "Geeza Pro", "Noto Sans Arabic", Arial, sans-serif';
+
+// Draws the invoice as a 1080px-wide PNG, the format WhatsApp shows inline.
+async function invoiceImage(s) {
+  if (!LOGO.complete) await new Promise(r => { LOGO.onload = LOGO.onerror = r; });
+  try { await document.fonts.ready; } catch (e) { /* older browsers */ }
+  const S = db.settings, c = byId(db, 'contacts', s.contactId), t = docTotal(s), rem = r2(t - (+s.paid || 0));
+  const W = 1080, P = 56, ROW = 66, ORANGE = '#ff8a1f', INK = '#151515';
+  const totals = [];
+  if (+s.discount) totals.push(['الخصم', plain(s.discount)]);
+  totals.push(['الإجمالي', plain(t), true]);
+  if (invSyp(s, t)) totals.push([`الإجمالي بالليرة (سعر ${num(+s.rate || rateOn(s.date))})`, invSyp(s, t), true]);
+  totals.push(['المدفوع', s.paidCur === 'syp' ? `${num(s.paidOrig)} ${cur2()}` : plain(s.paid)]);
+  totals.push(['الباقي', plain(rem)]);
+  const H = 310 + 190 + 70 + s.lines.length * ROW + 40 + totals.length * 64 + (s.note ? 70 : 0) + 190;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const x = cv.getContext('2d');
+  const text = (str, px, py, o = {}) => {
+    x.font = `${o.weight || 400} ${o.size || 30}px ${FONT}`;
+    x.fillStyle = o.color || INK; x.textAlign = o.align || 'right'; x.direction = o.dir || 'rtl';
+    let v = String(str ?? '');
+    if (o.max && x.measureText(v).width > o.max) { while (v.length > 1 && x.measureText(v + '…').width > o.max) v = v.slice(0, -1); v += '…'; }
+    x.fillText(v, px, py);
+  };
+  x.fillStyle = '#fff'; x.fillRect(0, 0, W, H);
+  // header
+  x.fillStyle = '#0b0b0d'; x.fillRect(0, 0, W, 300);
+  x.fillStyle = ORANGE; x.fillRect(0, 300, W, 10);
+  if (LOGO.naturalWidth) x.drawImage(LOGO, P, 30, 240, 240);
+  text(S.company, W - P, 118, { size: 66, weight: 700, color: '#fff', max: 640 });
+  text('3D Printing • Printers • Filament', W - P, 170, { size: 26, color: ORANGE, dir: 'ltr' });
+  text(`هاتف: ${companyPhone()}`, W - P, 228, { size: 34, color: '#fff' });
+  if (S.address) text(S.address, W - P, 276, { size: 26, color: '#c8c8c8', max: 640 });
+  // title and details
+  let y = 392;
+  text(s.ret ? 'إشعار مرتجع' : 'فاتورة مبيع', W - P, y, { size: 50, weight: 700 });
+  text('#' + s.no, P, y, { size: 50, weight: 700, color: ORANGE, align: 'left', dir: 'ltr' });
+  y += 62; text(`التاريخ: ${s.date}`, W - P, y, { size: 30, color: '#444' });
+  text(s.mode === 'wholesale' ? 'سعر جملة' : 'سعر مفرق', P, y, { size: 30, color: '#444', align: 'left' });
+  y += 50; text(`الزبون: ${c ? c.name : 'زبون نقدي'}`, W - P, y, { size: 30, color: '#444', max: W - 2 * P });
+  // table
+  y += 38;
+  const cName = W - P - 20, cQty = 470, cPrice = 320, cSum = P + 20;
+  x.fillStyle = ORANGE; x.fillRect(P, y, W - 2 * P, 64);
+  [['الصنف', cName, 'right'], ['الكمية', cQty, 'center'], ['السعر', cPrice, 'center'], ['المجموع', cSum, 'left']].forEach(([h, px, al]) => text(h, px, y + 44, { size: 30, weight: 700, color: '#fff', align: al }));
+  y += 64;
+  s.lines.forEach((l, i) => {
+    if (i % 2) { x.fillStyle = '#f5f5f5'; x.fillRect(P, y, W - 2 * P, ROW); }
+    text(l.name, cName, y + 44, { size: 29, max: cName - cQty - 70 });
+    text(num(l.qty), cQty, y + 44, { size: 29, align: 'center', dir: 'ltr' });
+    text(num(l.price), cPrice, y + 44, { size: 29, align: 'center', dir: 'ltr' });
+    text(num(l.qty * l.price), cSum, y + 44, { size: 29, align: 'left', dir: 'ltr' });
+    y += ROW;
+  });
+  x.fillStyle = '#ddd'; x.fillRect(P, y, W - 2 * P, 2);
+  // totals
+  y += 30;
+  totals.forEach(([label, val, strong]) => {
+    if (strong) { x.fillStyle = '#fff1e3'; x.fillRect(P, y, W - 2 * P, 58); }
+    text(label, W - P - 20, y + 41, { size: 31, weight: strong ? 700 : 400 });
+    text(val, P + 20, y + 41, { size: 31, weight: strong ? 700 : 400, align: 'left', dir: 'ltr' });
+    y += 64;
+  });
+  if (s.note) { y += 16; text(`ملاحظة: ${s.note}`, W - P, y + 30, { size: 26, color: '#555', max: W - 2 * P }); }
+  // footer
+  x.fillStyle = '#0b0b0d'; x.fillRect(0, H - 130, W, 130);
+  x.fillStyle = ORANGE; x.fillRect(0, H - 130, W, 6);
+  text(`شكراً لتعاملكم مع ${S.company}`, W / 2, H - 72, { size: 34, weight: 700, color: '#fff', align: 'center' });
+  text(companyPhone(), W / 2, H - 28, { size: 28, color: ORANGE, align: 'center', dir: 'ltr' });
+  return new Promise(r => cv.toBlob(r, 'image/png'));
+}
+
+// The image is prepared as soon as the invoice opens, so sharing can start straight from the tap.
+let invShare = null;
+function prepareInvImage(s) {
+  const job = { id: s.id, file: null };
+  job.p = invoiceImage(s).then(b => (job.file = new File([b], `plastika-invoice-${s.no}.png`, { type: 'image/png' })));
+  invShare = job;
+}
+
 function showInvoice(s) {
-  modal(`فاتورة #${s.no}`, invoiceHtml(s), null, `<button type="button" class="btn pri" data-act="printInv" data-id="${s.id}">طباعة / PDF</button><button type="button" class="btn" data-act="waInv" data-id="${s.id}">واتساب</button><button type="button" class="btn" data-act="editDoc" data-k="sale" data-id="${s.id}">تعديل</button>`);
+  prepareInvImage(s);
+  modal(`فاتورة #${s.no}`, invoiceHtml(s), null, `<button type="button" class="btn pri" data-act="shareInv" data-id="${s.id}">مشاركة واتساب</button><button type="button" class="btn" data-act="printInv" data-id="${s.id}">طباعة / PDF</button><button type="button" class="btn" data-act="editDoc" data-k="sale" data-id="${s.id}">تعديل</button>`);
 }
 function printHtml(html) { if (dlg.open) closeModal(); $('#print').innerHTML = html; setTimeout(() => window.print(), 80); }
 
@@ -470,11 +563,17 @@ const A = {
   quickProduct() { const name = $('#pk').value.trim(); const p = upsert('products', { name, category: CATS[0], unit: 'قطعة', sku: '', cost: 0, stock: 0, retail: 0, wholesale: 0, minStock: 0, track: true }); saveNow(); addLine(p); },
   rmLine(d) { cur.lines.splice(+d.i, 1); drawLines(); },
   printInv(d) { printHtml(invoiceHtml(byId(db, 'sales', d.id))); },
-  waInv(d) {
-    const s = byId(db, 'sales', d.id), c = byId(db, 'contacts', s.contactId), t = docTotal(s);
-    const txt = `${db.settings.company}\nفاتورة #${s.no} - ${s.date}\n` + s.lines.map(l => `${l.name} × ${num(l.qty)} = ${plain(l.qty * l.price)}`).join('\n') + `\nالإجمالي: ${plain(t)}${invSyp(s, t) ? ' = ' + invSyp(s, t) : ''}\nالمدفوع: ${s.paidCur === 'syp' ? num(s.paidOrig) + ' ' + cur2() : plain(s.paid)}\nالباقي: ${plain(t - s.paid)}`;
-    const phone = c && c.phone ? c.phone.replace(/\D/g, '') : '';
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(txt)}`, '_blank', 'noopener');
+  async shareInv(d) {
+    const s = byId(db, 'sales', d.id);
+    if (!invShare || invShare.id !== s.id) prepareInvImage(s);
+    let file = invShare.file;
+    if (!file) { toast('جاري تجهيز صورة الفاتورة...'); file = await invShare.p; }
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); return; }
+      catch (e) { if (e.name === 'AbortError') return; }
+    }
+    download(file.name, file, 'image/png');
+    toast('تم تنزيل صورة الفاتورة، أرسلها على واتساب');
   },
   del(d) {
     const used = d.c === 'contacts' ? [...live(db, 'sales'), ...live(db, 'purchases'), ...live(db, 'payments')].some(x => x.contactId === d.id)
@@ -493,12 +592,8 @@ const A = {
     <div class="grid2">${f('سعر المفرق', 'retail', p ? p.retail : 0, 'number', 'id="retail"')}${f('سعر الجملة', 'wholesale', p ? p.wholesale : 0, 'number', 'id="wholesale"')}${f('تكلفة الوحدة', 'cost', p ? p.cost : 0, 'number', 'id="pcost"')}${f('المخزون الافتتاحي', 'stock', p ? p.stock : 0, 'number')}</div>
     <label class="check"><input type="checkbox" name="track" ${!p || p.track !== false ? 'checked' : ''}> يتابع مخزونه (ألغِها للخدمات والتصاميم)</label>
     <details><summary>حاسبة تكلفة الطباعة وتسعيرها</summary>
-      <div class="grid2" style="margin-top:8px">
-      ${f('وزن القطعة (غرام)', 'c_g', '', 'number', 'data-calc')}${f('سعر كغ الفيلامنت', 'c_kg', S.filamentKg, 'number', 'data-calc')}
-      ${f('ساعات الطباعة', 'c_h', '', 'number', 'data-calc')}${f('اهتلاك + كهرباء / ساعة', 'c_mh', r2(+S.machineHour + +S.powerHour), 'number', 'data-calc')}
-      ${f('عمل وتشطيب', 'c_l', 0, 'number', 'data-calc')}${f('نسبة الفشل %', 'c_f', S.failPct, 'number', 'data-calc')}
-      ${f('هامش المفرق %', 'c_r', S.retailMarkup, 'number', 'data-calc')}${f('هامش الجملة %', 'c_w', S.wholesaleMarkup, 'number', 'data-calc')}</div>
-      <div class="rows" id="calcR"></div><button type="button" class="btn block" data-act="applyCalc" style="margin-top:8px">تطبيق الأسعار المقترحة</button>
+      <div style="margin-top:8px">${calcFields(S)}</div>
+      <div class="rows calcR"></div><button type="button" class="btn block" data-act="applyCalc" style="margin-top:8px">تطبيق الأسعار المقترحة</button>
       <p class="hint" style="margin-top:8px">الحاسبة للتسعير فقط. الكهرباء والإيجار الفعليان تسجلهما بالمصاريف، فلا تدخل تكلفتهما بحقل «تكلفة الوحدة» حتى لا تُخصم مرتين.</p>
     </details>`, () => {
       const v = formData();
@@ -509,6 +604,17 @@ const A = {
       upsert('products', rec); closeModal(); save(); toast('تم الحفظ'); return true;
     }, delBtn('products', d.id));
     calc();
+  },
+  calcNew() {
+    const form = $('#calcf'), r = calc(form), name = form.c_name.value.trim();
+    A.product({});
+    const m = $('#mf');
+    m.name.value = name; m.retail.value = r.retail; m.wholesale.value = r.wholesale; m.cost.value = r.material;
+  },
+  calcApply() {
+    const form = $('#calcf'), r = calc(form), p = byId(db, 'products', form.c_pid.value);
+    if (!p || !confirm(`تحديث أسعار «${p.name}» إلى ${plain(r.retail)} مفرق و${plain(r.wholesale)} جملة؟`)) return;
+    upsert('products', { id: p.id, retail: r.retail, wholesale: r.wholesale }); save(); toast('تم تحديث الأسعار');
   },
   applyCalc() { const r = calc(); $('#retail').value = r.retail; $('#wholesale').value = r.wholesale; if (!+$('#pcost').value) $('#pcost').value = r.material; toast('تم تطبيق الأسعار'); },
 
@@ -655,13 +761,24 @@ const A = {
   }
 };
 
-function calc() {
-  const v = formData(), g = +v.c_g || 0;
-  const material = r2(g / 1000 * (+v.c_kg || 0));
-  const base = material + (+v.c_h || 0) * (+v.c_mh || 0);
-  const full = r2(base * (1 + (+v.c_f || 0) / 100) + (+v.c_l || 0));
-  const out = { material, full, retail: r2(full * (1 + (+v.c_r || 0) / 100)), wholesale: r2(full * (1 + (+v.c_w || 0) / 100)) };
-  $('#calcR').innerHTML = `<div><span>تكلفة المادة</span>${money(material)}</div><div><span>التكلفة الكاملة</span>${money(full)}</div><div class="total"><span>مفرق مقترح</span>${money(out.retail)}</div><div class="total"><span>جملة مقترح</span>${money(out.wholesale)}</div>`;
+function calcFields(S) {
+  return `<div class="grid2">
+  ${f('وزن الطبعة (غرام)', 'c_g', '', 'number', 'data-calc')}${f('ساعات الطبعة', 'c_h', '', 'number', 'data-calc')}
+  ${f('عدد القطع بالطبعة', 'c_n', 1, 'number', 'data-calc')}${f('سعر كغ الفيلامنت', 'c_kg', S.filamentKg, 'number', 'data-calc')}
+  ${f('اهتلاك + كهرباء / ساعة', 'c_mh', r2(+S.machineHour + +S.powerHour), 'number', 'data-calc')}${f('عمل وتشطيب للقطعة', 'c_l', 0, 'number', 'data-calc')}
+  ${f('نسبة الفشل %', 'c_f', S.failPct, 'number', 'data-calc')}${f('هامش المفرق %', 'c_r', S.retailMarkup, 'number', 'data-calc')}
+  ${f('هامش الجملة %', 'c_w', S.wholesaleMarkup, 'number', 'data-calc')}</div>`;
+}
+// Per-piece cost and suggested prices. Weight and hours are for the whole print, shared by its pieces.
+function calc(form = $('#mf')) {
+  const v = Object.fromEntries(new FormData(form).entries()), n = Math.max(1, +v.c_n || 1);
+  const material = r2((+v.c_g || 0) / 1000 * (+v.c_kg || 0) / n);
+  const machine = r2((+v.c_h || 0) * (+v.c_mh || 0) / n);
+  const full = r2((material + machine) * (1 + (+v.c_f || 0) / 100) + (+v.c_l || 0));
+  const out = { material, machine, full, retail: r2(full * (1 + (+v.c_r || 0) / 100)), wholesale: r2(full * (1 + (+v.c_w || 0) / 100)) };
+  const row = (t, val, cls = '') => `<div class="${cls}"><span>${t}</span><span>${money(val)} ${syp(val)}</span></div>`;
+  form.querySelector('.calcR').innerHTML = row('تكلفة الفيلامنت للقطعة', material) + row('الطابعة والكهرباء للقطعة', machine) + row('التكلفة الكاملة للقطعة', full, 'total')
+    + row('سعر المفرق المقترح', out.retail, 'total') + row('ربح القطعة بالمفرق', r2(out.retail - full)) + row('سعر الجملة المقترح', out.wholesale, 'total') + row('ربح القطعة بالجملة', r2(out.wholesale - full));
   return out;
 }
 
@@ -691,6 +808,7 @@ dlg.addEventListener('change', e => {
 });
 $('#view').addEventListener('input', e => {
   const t = e.target;
+  if ('calc' in t.dataset) { calc($('#calcf')); return; }
   if (t.id === 'reserve') { ui.reserve = +t.value || 0; $('#distRows').innerHTML = distRows(C.distributionPreview(db, ui.distMonth, ui.reserve)); return; }
   if (t.dataset.filter !== 'q') return;
   ui.q = t.value; const pos = t.selectionStart; render();

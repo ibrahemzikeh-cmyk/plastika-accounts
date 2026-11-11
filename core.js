@@ -6,7 +6,7 @@
     const db = {
       version: 1,
       settings: {
-        company: 'بلاستيكة', slogan: '3D Printing • Printers • Filament', phone: '', address: '',
+        company: 'بلاستيكة', slogan: '3D Printing • Printers • Filament', phone: '0992246408', address: '',
         currency: '$', currency2: 'ل.س', rate: 0, openingCash: 0, shopPct: 16, roundStep: 10,
         filamentKg: 20, machineHour: 0.3, powerHour: 0.05, failPct: 5, retailMarkup: 100, wholesaleMarkup: 50,
         lastBackup: 0, updatedAt: 0
