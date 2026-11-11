@@ -294,7 +294,7 @@ function docList(kind) {
   return header(isS ? 'المبيعات' : 'المشتريات', `<button class="btn pri" data-act="newDoc" data-k="${kind}">+ ${isS ? 'فاتورة بيع' : 'فاتورة شراء'}</button>`) + `
   <div class="filters"><select data-filter="month" aria-label="الشهر">${monthOpts(ui.month)}</select><input placeholder="بحث" value="${esc(ui.q)}" data-filter="q" aria-label="بحث"></div>
   <div class="kpis"><div class="kpi"><span>المجموع</span><b>${money(total)}</b><small>${ds.length} فاتورة</small></div></div>
-  <div class="list">${ds.map(d => { const t = docTotal(d), rem = r2(t - (+d.paid || 0)); return `<button class="item" data-act="openDoc" data-k="${kind}" data-id="${d.id}"><div><b>#${d.no} ${esc(cname(d.contactId))}</b> ${d.ret ? '<span class="tag alert">مرتجع</span>' : ''} ${isS ? `<span class="tag">${d.mode === 'wholesale' ? 'جملة' : 'مفرق'}</span>` : ''}<span class="sub"><span class="num">${d.date}</span> · ${esc(d.lines.map(l => l.name).join('، '))}</span></div><div class="end"><b>${money(t)}</b>${rem > 0 ? `<span class="sub warn">باقي ${money(rem)}</span>` : '<span class="sub">مدفوعة</span>'}</div></button>`; }).join('') || empty('لا توجد فواتير بهذا الشهر')}</div>`;
+  <div class="list">${ds.map(d => { const V = docView(d), rem = V.rem; return `<button class="item" data-act="openDoc" data-k="${kind}" data-id="${d.id}"><div><b>#${d.no} ${esc(cname(d.contactId))}</b> ${d.ret ? '<span class="tag alert">مرتجع</span>' : ''} ${isS ? `<span class="tag">${d.mode === 'wholesale' ? 'جملة' : 'مفرق'}</span>` : ''}<span class="sub"><span class="num">${d.date}</span> · ${esc(d.lines.map(l => l.name).join('، '))}</span></div><div class="end"><b class="num">${esc(V.fmt(V.total))}</b>${rem > 0 ? `<span class="sub warn num">باقي ${esc(V.fmt(rem))}</span>` : '<span class="sub">مدفوعة</span>'}</div></button>`; }).join('') || empty('لا توجد فواتير بهذا الشهر')}</div>`;
 }
 
 // ---------- invoice form ----------
@@ -304,23 +304,46 @@ function nextNo(coll) { return db[coll].reduce((m, d) => Math.max(m, d.no || 0),
 function openDocForm(kind, rec) {
   const isS = kind === 'sale';
   const c = rec && byId(db, 'contacts', rec.contactId);
-  cur = { kind, lines: rec ? rec.lines.map(l => ({ ...l })) : [], paidTouched: !!rec };
+  const dc = rec ? (rec.cur || 'usd') : (ui.docCur || 'usd'), sy = dc === 'syp', k = rec ? +rec.rate || rateOn(rec.date) : 1;
+  cur = {
+    kind, cur: dc, paidTouched: !!rec,
+    lines: rec ? rec.lines.map(l => ({ ...l, price: sy ? (l.priceDoc ?? roundSyp(l.price * k)) : l.price, cost: sy && !l.pid ? (l.costDoc ?? r2((l.cost || 0) * k)) : l.cost })) : []
+  };
+  const disc = rec ? (sy ? (rec.discountDoc ?? roundSyp(rec.discount * k)) : rec.discount) : 0;
+  const paid = rec ? (sy ? rec.paidOrig : rec.paid) : 0;
   const names = live(db, 'contacts').filter(x => x.kind === (isS ? 'customer' : 'supplier')).map(x => `<option value="${esc(x.name)}">`).join('');
   modal(rec ? `تعديل فاتورة #${rec.no}` : (isS ? 'فاتورة بيع' : 'فاتورة شراء'), `
-  <div class="grid2">${f('التاريخ', 'date', rec ? rec.date : today(), 'date')}${isS ? sel('نوع السعر', 'mode', [['retail', 'مفرق'], ['wholesale', 'جملة']], rec ? rec.mode : 'retail', 'id="mode"') : ''}</div>
+  <div class="grid2">${f('التاريخ', 'date', rec ? rec.date : today(), 'date')}${sel('عملة الفاتورة', 'dcur', [['usd', `دولار ${db.settings.currency}`], ['syp', `ليرة ${cur2()}`]], dc, 'id="dcur"')}</div>
+  ${isS ? sel('نوع السعر', 'mode', [['retail', 'مفرق'], ['wholesale', 'جملة']], rec ? rec.mode : 'retail', 'id="mode"') : ''}
   <label class="f">${isS ? 'اسم الزبون (يظهر على الفاتورة)' : 'المورد'}<input name="contact" list="cl" value="${esc(c ? c.name : '')}" autocomplete="off" ${isS ? 'placeholder="مثلاً: أبو محمد - اتركه فارغاً لزبون نقدي"' : ''}><datalist id="cl">${names}</datalist></label>
   ${isS ? `<label class="check"><input type="checkbox" name="ret" ${rec && rec.ret ? 'checked' : ''}> هذه الفاتورة مرتجع من زبون</label>` : ''}
   <div class="picker"><input id="pk" placeholder="ابحث عن منتج لإضافته..." autocomplete="off" aria-label="بحث عن منتج"><div class="pk-res" id="pkr"></div>${isS ? '<button type="button" class="btn block" style="margin-top:6px" data-act="onceLine">+ قطعة مطبوعة لمرة واحدة (بدون حفظها كمنتج)</button>' : ''}</div>
   <div id="lines"></div>
-  <div class="grid2">${f('خصم', 'discount', rec ? rec.discount : 0, 'number', 'id="disc"')}${curSel('paidCur', rec ? rec.paidCur : 'usd', 'id="pcur"')}</div>${f('المدفوع', 'paid', rec ? (rec.paidCur === 'syp' ? rec.paidOrig : rec.paid) : 0, 'number', 'id="paid"')}
+  <div class="grid2">${f('الخصم <span class="cl"></span>', 'discount', disc, 'number', 'id="disc"')}${f('المدفوع <span class="cl"></span>', 'paid', paid, 'number', 'id="paid"')}</div>
   <div class="rows card" id="tot"></div>
   ${area('ملاحظة', 'note', rec ? rec.note : '')}`, () => saveDoc(kind, rec), delBtn(isS ? 'sales' : 'purchases', rec && rec.id));
   drawLines();
 }
 
+const roundSyp = v => Math.round((+v || 0) / step()) * step();
+const docSym = () => (cur && cur.cur === 'syp' ? cur2() : db.settings.currency);
+const formRate = () => rateOn($('#mf').elements.date.value);
+
+// Product prices are kept in dollars; a lira invoice converts them at the day's rate, rounded to the smallest note.
 function linePrice(p) {
-  if (cur.kind === 'purchase') return r2(C.stock(db)[p.id].avg);
-  return +($('#mode').value === 'wholesale' ? p.wholesale : p.retail) || 0;
+  const usd = cur.kind === 'purchase' ? r2(C.stock(db)[p.id].avg) : +($('#mode').value === 'wholesale' ? p.wholesale : p.retail) || 0;
+  return cur.cur === 'syp' ? roundSyp(usd * formRate()) : usd;
+}
+function switchDocCur(to) {
+  const k = formRate();
+  if (to === 'syp' && !k) { $('#dcur').value = cur.cur; return toast('حدد سعر صرف الدولار أولاً من الصفحة الرئيسية'); }
+  if (to === cur.cur) return;
+  const conv = to === 'syp' ? v => roundSyp(v * k) : v => r2(v / k);
+  cur.lines.forEach(l => { l.price = conv(l.price); if (!l.pid) l.cost = to === 'syp' ? r2((+l.cost || 0) * k) : r2((+l.cost || 0) / k); });
+  $('#disc').value = conv(+$('#disc').value || 0);
+  if (cur.paidTouched) $('#paid').value = conv(+$('#paid').value || 0);
+  cur.cur = to; ui.docCur = to;
+  drawLines();
 }
 function drawPicker() {
   const q = $('#pk').value.trim().toLowerCase(), box = $('#pkr');
@@ -337,29 +360,32 @@ function addLine(p) {
   $('#pk').value = ''; drawPicker(); drawLines(); $('#pk').focus();
 }
 function drawLines() {
+  const sym = esc(docSym());
   $('#lines').innerHTML = cur.lines.map((l, i) => `<div class="line"><div class="line-t">${l.pid ? `<span>${esc(l.name)}</span>` : `<input data-l="name" data-i="${i}" value="${esc(l.name)}" placeholder="اسم القطعة" aria-label="اسم القطعة"><span class="tag">مرة واحدة</span>`}<button type="button" data-act="rmLine" data-i="${i}" aria-label="حذف السطر">✕</button></div>
-  <div class="line-g"><label>الكمية<input type="number" step="any" inputmode="decimal" data-l="qty" data-i="${i}" value="${l.qty}"></label><label>السعر<input type="number" step="any" inputmode="decimal" data-l="price" data-i="${i}" value="${l.price}"></label>${l.pid ? '' : `<label>تكلفتها عليك<input type="number" step="any" inputmode="decimal" data-l="cost" data-i="${i}" value="${l.cost || 0}"></label>`}<label>المجموع<output id="ls${i}" class="num">${num(l.qty * l.price)}</output></label></div><div class="hint warn" id="lw${i}" style="margin:4px 0 0"></div></div>`).join('') || '<p class="hint">لم تتم إضافة منتجات بعد</p>';
+  <div class="line-g"><label>الكمية<input type="number" step="any" inputmode="decimal" data-l="qty" data-i="${i}" value="${l.qty}"></label><label>السعر (${sym})<input type="number" step="any" inputmode="decimal" data-l="price" data-i="${i}" value="${l.price}"></label>${l.pid ? '' : `<label>تكلفتها عليك (${sym})<input type="number" step="any" inputmode="decimal" data-l="cost" data-i="${i}" value="${l.cost || 0}"></label>`}<label>المجموع<output id="ls${i}" class="num">${num(l.qty * l.price)}</output></label></div><div class="hint warn" id="lw${i}" style="margin:4px 0 0"></div></div>`).join('') || '<p class="hint">لم تتم إضافة منتجات بعد</p>';
   updateTotals();
 }
 function updateTotals() {
   if (!cur) return;
-  const d = { lines: cur.lines, discount: $('#disc').value };
-  const t = docTotal(d), date = $('#mf').elements.date.value, inSyp = $('#pcur').value === 'syp';
-  if (!cur.paidTouched) $('#paid').value = inSyp ? (toSyp(t, date) ?? 0) : t;
-  const paidUsd = inSyp ? (rateOn(date) ? (+$('#paid').value || 0) / rateOn(date) : 0) : (+$('#paid').value || 0);
-  const rem = Math.abs(paidUsd - t) <= step() / (rateOn(date) || Infinity) ? 0 : r2(t - paidUsd);
+  const t = docTotal({ lines: cur.lines, discount: $('#disc').value });
+  const date = $('#mf').elements.date.value, sy = cur.cur === 'syp', k = rateOn(date), sym = docSym();
+  document.querySelectorAll('#mf .cl').forEach(e => (e.textContent = `(${sym})`));
+  if (!cur.paidTouched) $('#paid').value = t;
+  const rem = r2(t - (+$('#paid').value || 0));
+  const show = v => `<span class="num">${num(v)} ${esc(sym)}</span>`;
+  const alt = v => (sy ? (k ? `<small class="syp num">≈ ${num(r2(v / k))} ${esc(db.settings.currency)}</small>` : '') : syp(v, date));
   let extra = '';
   if (cur.kind === 'sale') {
     const st = C.stock(db);
-    const cost = cur.lines.reduce((s, l) => s + l.qty * (l.pid && st[l.pid] ? st[l.pid].avg : +l.cost || 0), 0);
-    extra = `<div><span>الربح المتوقع</span>${money(t - cost)}</div>`;
+    const cost = cur.lines.reduce((a, l) => a + l.qty * (l.pid && st[l.pid] ? st[l.pid].avg * (sy ? k : 1) : +l.cost || 0), 0);
+    extra = `<div><span>الربح المتوقع</span>${show(r2(t - cost))}</div>`;
     const isRet = $('#mf').elements.ret.checked;
     cur.lines.forEach((l, i) => {
       const p = byId(db, 'products', l.pid), w = $('#lw' + i);
       if (w) w.textContent = !isRet && p && p.track !== false && +l.qty > st[l.pid].qty ? `المتوفر ${num(st[l.pid].qty)} فقط` : '';
     });
   }
-  $('#tot').innerHTML = `<div class="total"><span>الإجمالي</span><span>${money(t)} ${syp(t, date)}</span></div><div><span>الباقي</span><span>${money(rem)} ${syp(rem, date)}</span></div>${extra}${rateOn(date) ? '' : '<div class="warn">لم يتم تحديد سعر الصرف</div>'}`;
+  $('#tot').innerHTML = `<div class="total"><span>الإجمالي</span><span>${show(t)} ${alt(t)}</span></div><div><span>الباقي</span><span>${show(rem)} ${alt(rem)}</span></div>${extra}${k ? '' : '<div class="warn">لم يتم تحديد سعر الصرف</div>'}`;
 }
 function resolveContact(name, kind) {
   name = name.trim();
@@ -367,27 +393,39 @@ function resolveContact(name, kind) {
   const ex = live(db, 'contacts').find(c => c.kind === kind && c.name === name);
   return ex ? ex.id : upsert('contacts', { name, kind, phone: '', opening: 0 }).id;
 }
+// Amounts are entered in the invoice currency; the books keep dollars, with the lira figures stored for display.
 function saveDoc(kind, rec) {
   const v = formData(), isS = kind === 'sale', coll = isS ? 'sales' : 'purchases';
+  const sy = cur.cur === 'syp', k = rateOn(v.date);
   if (!v.date) return fail('اختر التاريخ');
+  if (sy && !k) return fail('حدد سعر صرف الدولار أولاً من الصفحة الرئيسية');
   if (!cur.lines.length) return fail('أضف منتجاً واحداً على الأقل');
   if (cur.lines.some(l => !(+l.qty > 0) || +l.price < 0 || +l.cost < 0)) return fail('تحقق من الكميات والأسعار');
   if (cur.lines.some(l => !l.pid && !String(l.name).trim())) return fail('اكتب اسم القطعة المباعة لمرة واحدة');
-  const discount = +v.discount || 0, amt = readAmt(v, 'paid', v.date);
-  if (amt.error) return fail(amt.error);
-  let paid = amt.usd;
-  if (discount < 0 || paid < 0) return fail('الخصم والمدفوع لا يمكن أن يكونا بالسالب');
-  const total = docTotal({ lines: cur.lines, discount });
-  // Rounded lira payments count as paying the invoice in full.
-  if (amt.cur === 'syp' && Math.abs(paid - total) <= step() / rateOn(v.date)) paid = total;
-  if (total < 0) return fail('الخصم أكبر من قيمة الفاتورة');
-  if (paid > total) return fail('المدفوع أكبر من إجمالي الفاتورة');
-  if (paid < total && !v.contact.trim()) return fail(`اكتب اسم ${isS ? 'الزبون' : 'المورد'} لتسجيل الباقي دَيناً عليه`);
-  const st = isS ? C.stock(db, v.date) : null;
-  const lines = cur.lines.map(l => ({ ...l, qty: +l.qty, price: +l.price, ...(isS ? { name: String(l.name).trim(), cost: Math.round((l.pid && st[l.pid] ? st[l.pid].avg : +l.cost || 0) * 1e4) / 1e4 } : {}) }));
-  const doc = { date: v.date, contactId: resolveContact(v.contact, isS ? 'customer' : 'supplier'), discount, paid, paidCur: amt.cur, paidOrig: amt.orig, rate: rateOn(v.date), note: v.note, lines };
+  const discDoc = +v.discount || 0, paidDoc = +v.paid || 0;
+  if (discDoc < 0 || paidDoc < 0) return fail('الخصم والمدفوع لا يمكن أن يكونا بالسالب');
+  const totalDoc = docTotal({ lines: cur.lines, discount: discDoc });
+  if (totalDoc < 0) return fail('الخصم أكبر من قيمة الفاتورة');
+  if (paidDoc > totalDoc) return fail('المدفوع أكبر من إجمالي الفاتورة');
+  if (paidDoc < totalDoc && !v.contact.trim()) return fail(`اكتب اسم ${isS ? 'الزبون' : 'المورد'} لتسجيل الباقي دَيناً عليه`);
+  const f = sy ? 1 / k : 1, st = isS ? C.stock(db, v.date) : null;
+  const lines = cur.lines.map(l => {
+    const o = { ...l, qty: +l.qty, price: +l.price * f };
+    delete o.priceDoc; delete o.costDoc;
+    if (sy) o.priceDoc = +l.price;
+    if (isS) {
+      o.name = String(l.name).trim();
+      if (sy && !l.pid) o.costDoc = +l.cost || 0;
+      o.cost = Math.round((l.pid && st[l.pid] ? st[l.pid].avg : (+l.cost || 0) * f) * 1e4) / 1e4;
+    }
+    return o;
+  });
+  const discount = discDoc * f;
+  const paid = paidDoc >= totalDoc ? docTotal({ lines, discount }) : r2(paidDoc * f);
+  const doc = { date: v.date, contactId: resolveContact(v.contact, isS ? 'customer' : 'supplier'), cur: cur.cur, rate: k, discount, discountDoc: sy ? discDoc : null, paid, paidCur: cur.cur, paidOrig: paidDoc, note: v.note, lines };
   if (isS) { doc.mode = v.mode; doc.ret = !!v.ret; }
   if (rec) doc.id = rec.id; else doc.no = nextNo(coll);
+  ui.docCur = cur.cur;
   const saved = upsert(coll, doc);
   closeModal(); save(); toast('تم الحفظ');
   if (isS) showInvoice(saved);
@@ -395,12 +433,22 @@ function saveDoc(kind, rec) {
 }
 
 function invSyp(s, usd) { const r = +s.rate || rateOn(s.date); return r ? `${num(Math.round(usd * r / step()) * step())} ${cur2()}` : ''; }
+function docView(s) {
+  const sy = s.cur === 'syp', k = +s.rate || rateOn(s.date);
+  const fmt = v => `${num(v)} ${sy ? cur2() : db.settings.currency}`;
+  const lines = s.lines.map(l => { const price = sy ? (l.priceDoc ?? roundSyp(l.price * k)) : +l.price; return { name: l.name, qty: +l.qty, price, sum: r2(l.qty * price) }; });
+  const discount = sy ? (s.discountDoc ?? roundSyp(s.discount * k)) : +s.discount || 0;
+  const total = r2(lines.reduce((a, l) => a + l.sum, 0) - discount);
+  const paidTxt = sy ? fmt(+s.paidOrig || 0) : (s.paidCur === 'syp' ? `${num(s.paidOrig)} ${cur2()}` : fmt(+s.paid || 0));
+  const rem = sy ? r2(total - (+s.paidOrig || 0)) : r2(total - (+s.paid || 0));
+  return { sy, fmt, lines, discount, total, paidTxt, rem, inLira: sy ? '' : invSyp(s, total) };
+}
 function invoiceHtml(s) {
-  const c = byId(db, 'contacts', s.contactId), t = docTotal(s), rem = r2(t - (+s.paid || 0)), S = db.settings;
+  const c = byId(db, 'contacts', s.contactId), S = db.settings, V = docView(s);
   return `<div class="inv"><div class="inv-h"><div><h2 style="margin:0">${esc(S.company)}</h2><div class="sub num">${esc(companyPhone())}</div><div class="sub">${esc(S.address)}</div></div><img src="icons/icon-192.png" alt=""></div>
   <div class="rows"><div><span>${s.ret ? 'إشعار مرتجع' : 'فاتورة'} رقم</span><b class="num">${s.no}</b></div><div><span>التاريخ</span><span class="num">${s.date}</span></div><div><span>الزبون</span><b>${esc(c ? c.name : 'زبون نقدي')}${c && c.phone ? ` <span class="sub num">${esc(c.phone)}</span>` : ''}</b></div></div>
-  <div class="table" style="margin:10px 0"><table><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>المجموع</th></tr>${s.lines.map(l => `<tr><td style="white-space:normal">${esc(l.name)}</td><td class="num">${num(l.qty)}</td><td class="num">${num(l.price)}</td><td class="num">${num(l.qty * l.price)}</td></tr>`).join('')}</table></div>
-  <div class="rows">${+s.discount ? `<div><span>الخصم</span>${money(s.discount)}</div>` : ''}<div class="total"><span>الإجمالي</span>${money(t)}</div>${invSyp(s, t) ? `<div><span>بالليرة</span><b class="num">${esc(invSyp(s, t))}</b></div>` : ''}<div><span>المدفوع</span><span>${s.paidCur === 'syp' ? `<span class="num">${num(s.paidOrig)} ${esc(cur2())}</span>` : money(s.paid)}</span></div><div><span>الباقي</span>${money(rem)}</div></div>${s.note ? `<p class="hint">${esc(s.note)}</p>` : ''}</div>`;
+  <div class="table" style="margin:10px 0"><table><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>المجموع</th></tr>${V.lines.map(l => `<tr><td style="white-space:normal">${esc(l.name)}</td><td class="num">${num(l.qty)}</td><td class="num">${num(l.price)}</td><td class="num">${num(l.sum)}</td></tr>`).join('')}</table></div>
+  <div class="rows">${V.discount ? `<div><span>الخصم</span><span class="num">${esc(V.fmt(V.discount))}</span></div>` : ''}<div class="total"><span>الإجمالي</span><span class="num">${esc(V.fmt(V.total))}</span></div>${V.inLira ? `<div><span>بالليرة</span><b class="num">${esc(V.inLira)}</b></div>` : ''}<div><span>المدفوع</span><span class="num">${esc(V.paidTxt)}</span></div><div><span>الباقي</span><span class="num">${esc(V.fmt(V.rem))}</span></div></div>${s.note ? `<p class="hint">${esc(s.note)}</p>` : ''}</div>`;
 }
 const companyPhone = () => db.settings.phone || '0992246408';
 const LOGO = new Image(); LOGO.src = 'icons/icon-512.png';
@@ -410,14 +458,14 @@ const FONT = '"Segoe UI", Tahoma, "SF Arabic", "Geeza Pro", "Noto Sans Arabic", 
 async function invoiceImage(s) {
   if (!LOGO.complete) await new Promise(r => { LOGO.onload = LOGO.onerror = r; });
   try { await document.fonts.ready; } catch (e) { /* older browsers */ }
-  const S = db.settings, c = byId(db, 'contacts', s.contactId), t = docTotal(s), rem = r2(t - (+s.paid || 0));
+  const S = db.settings, c = byId(db, 'contacts', s.contactId), V = docView(s);
   const W = 1080, P = 56, ROW = 66, ORANGE = '#ff8a1f', INK = '#151515';
   const totals = [];
-  if (+s.discount) totals.push(['الخصم', plain(s.discount)]);
-  totals.push(['الإجمالي', plain(t), true]);
-  if (invSyp(s, t)) totals.push(['الإجمالي بالليرة', invSyp(s, t), true]);
-  totals.push(['المدفوع', s.paidCur === 'syp' ? `${num(s.paidOrig)} ${cur2()}` : plain(s.paid)]);
-  totals.push(['الباقي', plain(rem)]);
+  if (V.discount) totals.push(['الخصم', V.fmt(V.discount)]);
+  totals.push(['الإجمالي', V.fmt(V.total), true]);
+  if (V.inLira) totals.push(['الإجمالي بالليرة', V.inLira, true]);
+  totals.push(['المدفوع', V.paidTxt]);
+  totals.push(['الباقي', V.fmt(V.rem)]);
   const H = 310 + 190 + 70 + s.lines.length * ROW + 40 + totals.length * 64 + (s.note ? 70 : 0) + 190;
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
@@ -450,14 +498,14 @@ async function invoiceImage(s) {
   y += 38;
   const cName = W - P - 20, cQty = 470, cPrice = 320, cSum = P + 20;
   x.fillStyle = ORANGE; x.fillRect(P, y, W - 2 * P, 64);
-  [['الصنف', cName, 'right'], ['الكمية', cQty, 'center'], ['السعر', cPrice, 'center'], ['المجموع', cSum, 'left']].forEach(([h, px, al]) => text(h, px, y + 44, { size: 30, weight: 700, color: '#fff', align: al }));
+  [['الصنف', cName, 'right'], ['الكمية', cQty, 'center'], [`السعر (${V.sy ? cur2() : S.currency})`, cPrice, 'center'], ['المجموع', cSum, 'left']].forEach(([h, px, al]) => text(h, px, y + 44, { size: 30, weight: 700, color: '#fff', align: al }));
   y += 64;
-  s.lines.forEach((l, i) => {
+  V.lines.forEach((l, i) => {
     if (i % 2) { x.fillStyle = '#f5f5f5'; x.fillRect(P, y, W - 2 * P, ROW); }
     text(l.name, cName, y + 44, { size: 29, max: cName - cQty - 70 });
     text(num(l.qty), cQty, y + 44, { size: 29, align: 'center', dir: 'ltr' });
     text(num(l.price), cPrice, y + 44, { size: 29, align: 'center', dir: 'ltr' });
-    text(num(l.qty * l.price), cSum, y + 44, { size: 29, align: 'left', dir: 'ltr' });
+    text(num(l.sum), cSum, y + 44, { size: 29, align: 'left', dir: 'ltr' });
     y += ROW;
   });
   x.fillStyle = '#ddd'; x.fillRect(P, y, W - 2 * P, 2);
@@ -813,8 +861,8 @@ dlg.addEventListener('change', e => {
   const t = e.target;
   if (t.id === 'mode') { cur.lines.forEach(l => { const p = byId(db, 'products', l.pid); if (p) l.price = linePrice(p); }); drawLines(); }
   if (t.name === 'ret') updateTotals();
-  if (t.id === 'pcur') { cur.paidTouched = false; updateTotals(); }
-  if (cur && t.name === 'date' && $('#pcur')) updateTotals();
+  if (t.id === 'dcur') switchDocCur(t.value);
+  if (cur && t.name === 'date' && $('#dcur')) updateTotals();
 });
 $('#view').addEventListener('input', e => {
   const t = e.target;
