@@ -310,7 +310,7 @@ function openDocForm(kind, rec) {
   <div class="grid2">${f('التاريخ', 'date', rec ? rec.date : today(), 'date')}${isS ? sel('نوع السعر', 'mode', [['retail', 'مفرق'], ['wholesale', 'جملة']], rec ? rec.mode : 'retail', 'id="mode"') : ''}</div>
   <label class="f">${isS ? 'اسم الزبون (يظهر على الفاتورة)' : 'المورد'}<input name="contact" list="cl" value="${esc(c ? c.name : '')}" autocomplete="off" ${isS ? 'placeholder="مثلاً: أبو محمد - اتركه فارغاً لزبون نقدي"' : ''}><datalist id="cl">${names}</datalist></label>
   ${isS ? `<label class="check"><input type="checkbox" name="ret" ${rec && rec.ret ? 'checked' : ''}> هذه الفاتورة مرتجع من زبون</label>` : ''}
-  <div class="picker"><input id="pk" placeholder="ابحث عن منتج لإضافته..." autocomplete="off" aria-label="بحث عن منتج"><div class="pk-res" id="pkr"></div></div>
+  <div class="picker"><input id="pk" placeholder="ابحث عن منتج لإضافته..." autocomplete="off" aria-label="بحث عن منتج"><div class="pk-res" id="pkr"></div>${isS ? '<button type="button" class="btn block" style="margin-top:6px" data-act="onceLine">+ قطعة مطبوعة لمرة واحدة (بدون حفظها كمنتج)</button>' : ''}</div>
   <div id="lines"></div>
   <div class="grid2">${f('خصم', 'discount', rec ? rec.discount : 0, 'number', 'id="disc"')}${curSel('paidCur', rec ? rec.paidCur : 'usd', 'id="pcur"')}</div>${f('المدفوع', 'paid', rec ? (rec.paidCur === 'syp' ? rec.paidOrig : rec.paid) : 0, 'number', 'id="paid"')}
   <div class="rows card" id="tot"></div>
@@ -328,6 +328,7 @@ function drawPicker() {
   const st = C.stock(db);
   const res = live(db, 'products').filter(p => (p.name + ' ' + (p.sku || '')).toLowerCase().includes(q)).slice(0, 8);
   box.innerHTML = res.map(p => `<button type="button" data-act="pick" data-id="${p.id}"><span>${esc(p.name)}</span><span class="sub num" style="color:var(--muted)">${p.track !== false ? num(st[p.id].qty) + ' ' + esc(p.unit) : ''}</span></button>`).join('') +
+    (cur.kind === 'sale' ? `<button type="button" data-act="onceLine"><span class="warn">+ بيع «${esc($('#pk').value.trim())}» لمرة واحدة (بدون حفظ)</span></button>` : '') +
     (res.some(p => p.name.toLowerCase() === q) ? '' : `<button type="button" data-act="quickProduct"><span class="warn">+ إضافة «${esc($('#pk').value.trim())}» كمنتج جديد</span></button>`);
 }
 function addLine(p) {
@@ -336,8 +337,8 @@ function addLine(p) {
   $('#pk').value = ''; drawPicker(); drawLines(); $('#pk').focus();
 }
 function drawLines() {
-  $('#lines').innerHTML = cur.lines.map((l, i) => `<div class="line"><div class="line-t"><span>${esc(l.name)}</span><button type="button" data-act="rmLine" data-i="${i}" aria-label="حذف السطر">✕</button></div>
-  <div class="line-g"><label>الكمية<input type="number" step="any" inputmode="decimal" data-l="qty" data-i="${i}" value="${l.qty}"></label><label>السعر<input type="number" step="any" inputmode="decimal" data-l="price" data-i="${i}" value="${l.price}"></label><label>المجموع<output id="ls${i}" class="num">${num(l.qty * l.price)}</output></label></div><div class="hint warn" id="lw${i}" style="margin:4px 0 0"></div></div>`).join('') || '<p class="hint">لم تتم إضافة منتجات بعد</p>';
+  $('#lines').innerHTML = cur.lines.map((l, i) => `<div class="line"><div class="line-t">${l.pid ? `<span>${esc(l.name)}</span>` : `<input data-l="name" data-i="${i}" value="${esc(l.name)}" placeholder="اسم القطعة" aria-label="اسم القطعة"><span class="tag">مرة واحدة</span>`}<button type="button" data-act="rmLine" data-i="${i}" aria-label="حذف السطر">✕</button></div>
+  <div class="line-g"><label>الكمية<input type="number" step="any" inputmode="decimal" data-l="qty" data-i="${i}" value="${l.qty}"></label><label>السعر<input type="number" step="any" inputmode="decimal" data-l="price" data-i="${i}" value="${l.price}"></label>${l.pid ? '' : `<label>تكلفتها عليك<input type="number" step="any" inputmode="decimal" data-l="cost" data-i="${i}" value="${l.cost || 0}"></label>`}<label>المجموع<output id="ls${i}" class="num">${num(l.qty * l.price)}</output></label></div><div class="hint warn" id="lw${i}" style="margin:4px 0 0"></div></div>`).join('') || '<p class="hint">لم تتم إضافة منتجات بعد</p>';
   updateTotals();
 }
 function updateTotals() {
@@ -350,7 +351,7 @@ function updateTotals() {
   let extra = '';
   if (cur.kind === 'sale') {
     const st = C.stock(db);
-    const cost = cur.lines.reduce((s, l) => s + l.qty * (st[l.pid] ? st[l.pid].avg : 0), 0);
+    const cost = cur.lines.reduce((s, l) => s + l.qty * (l.pid && st[l.pid] ? st[l.pid].avg : +l.cost || 0), 0);
     extra = `<div><span>الربح المتوقع</span>${money(t - cost)}</div>`;
     const isRet = $('#mf').elements.ret.checked;
     cur.lines.forEach((l, i) => {
@@ -370,7 +371,8 @@ function saveDoc(kind, rec) {
   const v = formData(), isS = kind === 'sale', coll = isS ? 'sales' : 'purchases';
   if (!v.date) return fail('اختر التاريخ');
   if (!cur.lines.length) return fail('أضف منتجاً واحداً على الأقل');
-  if (cur.lines.some(l => !(+l.qty > 0) || +l.price < 0)) return fail('تحقق من الكميات والأسعار');
+  if (cur.lines.some(l => !(+l.qty > 0) || +l.price < 0 || +l.cost < 0)) return fail('تحقق من الكميات والأسعار');
+  if (cur.lines.some(l => !l.pid && !String(l.name).trim())) return fail('اكتب اسم القطعة المباعة لمرة واحدة');
   const discount = +v.discount || 0, amt = readAmt(v, 'paid', v.date);
   if (amt.error) return fail(amt.error);
   let paid = amt.usd;
@@ -382,7 +384,7 @@ function saveDoc(kind, rec) {
   if (paid > total) return fail('المدفوع أكبر من إجمالي الفاتورة');
   if (paid < total && !v.contact.trim()) return fail(`اكتب اسم ${isS ? 'الزبون' : 'المورد'} لتسجيل الباقي دَيناً عليه`);
   const st = isS ? C.stock(db, v.date) : null;
-  const lines = cur.lines.map(l => ({ ...l, qty: +l.qty, price: +l.price, ...(isS ? { cost: Math.round((st[l.pid] ? st[l.pid].avg : l.cost || 0) * 1e4) / 1e4 } : {}) }));
+  const lines = cur.lines.map(l => ({ ...l, qty: +l.qty, price: +l.price, ...(isS ? { name: String(l.name).trim(), cost: Math.round((l.pid && st[l.pid] ? st[l.pid].avg : +l.cost || 0) * 1e4) / 1e4 } : {}) }));
   const doc = { date: v.date, contactId: resolveContact(v.contact, isS ? 'customer' : 'supplier'), discount, paid, paidCur: amt.cur, paidOrig: amt.orig, rate: rateOn(v.date), note: v.note, lines };
   if (isS) { doc.mode = v.mode; doc.ret = !!v.ret; }
   if (rec) doc.id = rec.id; else doc.no = nextNo(coll);
@@ -398,7 +400,7 @@ function invoiceHtml(s) {
   return `<div class="inv"><div class="inv-h"><div><h2 style="margin:0">${esc(S.company)}</h2><div class="sub num">${esc(companyPhone())}</div><div class="sub">${esc(S.address)}</div></div><img src="icons/icon-192.png" alt=""></div>
   <div class="rows"><div><span>${s.ret ? 'إشعار مرتجع' : 'فاتورة'} رقم</span><b class="num">${s.no}</b></div><div><span>التاريخ</span><span class="num">${s.date}</span></div><div><span>الزبون</span><b>${esc(c ? c.name : 'زبون نقدي')}${c && c.phone ? ` <span class="sub num">${esc(c.phone)}</span>` : ''}</b></div></div>
   <div class="table" style="margin:10px 0"><table><tr><th>الصنف</th><th>الكمية</th><th>السعر</th><th>المجموع</th></tr>${s.lines.map(l => `<tr><td style="white-space:normal">${esc(l.name)}</td><td class="num">${num(l.qty)}</td><td class="num">${num(l.price)}</td><td class="num">${num(l.qty * l.price)}</td></tr>`).join('')}</table></div>
-  <div class="rows">${+s.discount ? `<div><span>الخصم</span>${money(s.discount)}</div>` : ''}<div class="total"><span>الإجمالي</span>${money(t)}</div>${invSyp(s, t) ? `<div><span>بالليرة <small class="sub num">(سعر ${num(s.rate || rateOn(s.date))})</small></span><b class="num">${esc(invSyp(s, t))}</b></div>` : ''}<div><span>المدفوع</span><span>${s.paidCur === 'syp' ? `<span class="num">${num(s.paidOrig)} ${esc(cur2())}</span>` : money(s.paid)}</span></div><div><span>الباقي</span>${money(rem)}</div></div>${s.note ? `<p class="hint">${esc(s.note)}</p>` : ''}</div>`;
+  <div class="rows">${+s.discount ? `<div><span>الخصم</span>${money(s.discount)}</div>` : ''}<div class="total"><span>الإجمالي</span>${money(t)}</div>${invSyp(s, t) ? `<div><span>بالليرة</span><b class="num">${esc(invSyp(s, t))}</b></div>` : ''}<div><span>المدفوع</span><span>${s.paidCur === 'syp' ? `<span class="num">${num(s.paidOrig)} ${esc(cur2())}</span>` : money(s.paid)}</span></div><div><span>الباقي</span>${money(rem)}</div></div>${s.note ? `<p class="hint">${esc(s.note)}</p>` : ''}</div>`;
 }
 const companyPhone = () => db.settings.phone || '0992246408';
 const LOGO = new Image(); LOGO.src = 'icons/icon-512.png';
@@ -413,7 +415,7 @@ async function invoiceImage(s) {
   const totals = [];
   if (+s.discount) totals.push(['الخصم', plain(s.discount)]);
   totals.push(['الإجمالي', plain(t), true]);
-  if (invSyp(s, t)) totals.push([`الإجمالي بالليرة (سعر ${num(+s.rate || rateOn(s.date))})`, invSyp(s, t), true]);
+  if (invSyp(s, t)) totals.push(['الإجمالي بالليرة', invSyp(s, t), true]);
   totals.push(['المدفوع', s.paidCur === 'syp' ? `${num(s.paidOrig)} ${cur2()}` : plain(s.paid)]);
   totals.push(['الباقي', plain(rem)]);
   const H = 310 + 190 + 70 + s.lines.length * ROW + 40 + totals.length * 64 + (s.note ? 70 : 0) + 190;
@@ -561,6 +563,13 @@ const A = {
   openDoc(d) { const coll = d.k === 'sale' ? 'sales' : 'purchases', r = byId(db, coll, d.id); if (d.k === 'sale') showInvoice(r); else openDocForm('purchase', r); },
   editDoc(d) { openDocForm(d.k, byId(db, 'sales', d.id)); },
   pick(d) { addLine(byId(db, 'products', d.id)); },
+  onceLine() {
+    const name = $('#pk').value.trim();
+    cur.lines.push({ pid: '', name, qty: 1, price: 0, cost: 0 });
+    $('#pk').value = ''; drawPicker(); drawLines();
+    const ins = $('#lines').querySelectorAll('[data-l="' + (name ? 'price' : 'name') + '"]');
+    ins[ins.length - 1].focus();
+  },
   quickProduct() { const name = $('#pk').value.trim(); const p = upsert('products', { name, category: CATS[0], unit: 'قطعة', sku: '', cost: 0, stock: 0, retail: 0, wholesale: 0, minStock: 0, track: true }); saveNow(); addLine(p); },
   rmLine(d) { cur.lines.splice(+d.i, 1); drawLines(); },
   printInv(d) { printHtml(invoiceHtml(byId(db, 'sales', d.id))); },
@@ -794,7 +803,7 @@ dlg.addEventListener('submit', e => { e.preventDefault(); if (submitFn) submitFn
 dlg.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'pk') drawPicker();
-  if (t.dataset.l) { const l = cur.lines[+t.dataset.i]; l[t.dataset.l] = +t.value || 0; $('#ls' + t.dataset.i).textContent = num(l.qty * l.price); updateTotals(); }
+  if (t.dataset.l) { const l = cur.lines[+t.dataset.i]; l[t.dataset.l] = t.dataset.l === 'name' ? t.value : +t.value || 0; $('#ls' + t.dataset.i).textContent = num(l.qty * l.price); updateTotals(); }
   if (t.id === 'paid') cur.paidTouched = true;
   if (t.id === 'disc') updateTotals();
   if (t.id === 'paid') updateTotals();

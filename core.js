@@ -97,7 +97,8 @@
     live(db, 'sales').filter(s => inRange(s.date, from, to)).forEach(s => {
       const sub = docSub(s), f = sub > 0 ? docTotal(s) / sub : 1;
       s.lines.forEach(l => {
-        const x = (m[l.pid] = m[l.pid] || { pid: l.pid, name: l.name, qty: 0, revenue: 0, profit: 0 });
+        const k = l.pid || 'once:' + l.name;
+        const x = (m[k] = m[k] || { pid: l.pid, name: l.name, qty: 0, revenue: 0, profit: 0 });
         const rev = l.qty * l.price * f * sign(s);
         x.qty += l.qty * sign(s); x.revenue += rev; x.profit += rev - l.qty * (l.cost || 0) * sign(s);
       });

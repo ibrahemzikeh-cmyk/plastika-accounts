@@ -140,3 +140,4 @@ summary { cursor: pointer; font-weight: 600; color: var(--orange); min-height: 3
 .ratebar { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .ratebar b { display: block; font-size: 1.15rem; }
 .ratebar.stale { border-color: var(--orange); }
+.line-t input { min-height: 38px; padding: 6px 9px; font-weight: 600; }
