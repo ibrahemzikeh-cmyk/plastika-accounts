@@ -53,13 +53,24 @@ async function load() {
   if (!d) { try { d = JSON.parse(localStorage.getItem('plastika') || 'null'); } catch (e) { /* no saved data */ } }
   if (d && C.isValidBackup(d)) { const b = C.blank(); db = { ...b, ...d, settings: { ...b.settings, ...d.settings } }; }
 }
+// Every change gets a version newer than the one it replaces, even when this phone's clock is behind another's.
+const nextVersion = old => Math.max(Date.now(), (old || 0) + 1);
 function upsert(coll, rec) {
   const now = Date.now();
-  if (rec.id) { const i = db[coll].findIndex(x => x.id === rec.id); db[coll][i] = { ...db[coll][i], ...rec, updatedAt: now }; return db[coll][i]; }
-  const n = { ...rec, id: uid(), createdAt: now, updatedAt: now };
-  db[coll].push(n); return n;
+  let out;
+  if (rec.id) { const i = db[coll].findIndex(x => x.id === rec.id); out = db[coll][i] = { ...db[coll][i], ...rec, updatedAt: nextVersion(db[coll][i].updatedAt) }; }
+  else { out = { ...rec, id: uid(), createdAt: now, updatedAt: now }; db[coll].push(out); }
+  Sync.mark(`${coll}:${out.id}`);
+  return out;
 }
-function removeRec(coll, id) { const r = db[coll].find(x => x.id === id); if (r) Object.keys(r).forEach(k => { if (!['id', 'createdAt'].includes(k)) delete r[k]; }); if (r) { r.deleted = true; r.updatedAt = Date.now(); } }
+function removeRec(coll, id) {
+  const r = db[coll].find(x => x.id === id);
+  if (!r) return;
+  const v = nextVersion(r.updatedAt);
+  Object.keys(r).forEach(k => { if (!['id', 'createdAt'].includes(k)) delete r[k]; });
+  r.deleted = true; r.updatedAt = v;
+  Sync.mark(`${coll}:${id}`);
+}
 
 // ---------- icons / nav ----------
 const P = {
@@ -72,7 +83,7 @@ const icon = n => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path 
 const NAV = [['home', 'الرئيسية', 'home'], ['sales', 'المبيعات', 'sales'], ['purchases', 'المشتريات', 'buy'], ['products', 'المنتجات والأسعار', 'box'], ['pricing', 'حاسبة التسعير', 'calc'], ['contacts', 'العملاء والموردون', 'users'], ['expenses', 'المصاريف', 'exp'], ['cash', 'الصندوق', 'money'], ['partners', 'الشركاء والأرباح', 'part'], ['reports', 'التقارير', 'chart'], ['settings', 'الإعدادات', 'gear']];
 const BOTTOM = [['home', 'الرئيسية', 'home'], ['sales', 'المبيعات', 'sales'], ['products', 'المنتجات', 'box'], ['partners', 'الشركاء', 'part']];
 
-const badge = () => { const st = Sync.status(); return `<span class="sync-badge" data-s="${st.state}">${st.label}</span>`; };
+const badge = () => { const st = Sync.status(); return `<span class="sync-badge" data-s="${st.state}" data-act="go" data-v="settings" role="button">${st.label}</span>`; };
 function renderNav() {
   $('#side').innerHTML = `<div class="brand"><img src="icons/icon-192.png" alt=""><div>${esc(db.settings.company)}<br>${badge()}</div></div>` + NAV.map(([v, t, i]) => `<button class="nav ${v === view ? 'on' : ''}" data-act="go" data-v="${v}">${icon(i)}${t}</button>`).join('');
   const inBottom = BOTTOM.some(b => b[0] === view);
@@ -116,6 +127,7 @@ const Views = {
     const stale = !isEmpty && Date.now() - (db.settings.lastBackup || 0) > 7 * 864e5;
     return `<div class="head"><div class="head-l"><img class="logo" src="icons/icon-192.png" alt="شعار بلاستيكة"><div><h1>${esc(db.settings.company)}</h1><span class="hint">${ymName(ym())}</span> ${badge()}</div></div></div>
     ${isEmpty ? `<div class="card"><h2>أهلاً بك 👋</h2><p class="hint">ابدأ بإضافة منتجاتك وشركائك، أو جرّب البرنامج ببيانات تجريبية.</p><div class="btns"><button class="btn pri" data-act="go" data-v="products">إضافة منتجات</button>${Sync.connected() ? '' : '<button class="btn" data-act="demo">تحميل بيانات تجريبية</button>'}</div></div>` : ''}
+    ${!Sync.connected() ? `<div class="note">${Sync.status().state === 'auth' ? esc(Sync.status().message) : 'هذا الجهاز غير مربوط بالمزامنة، فاللي بتسجله هون ما بيوصل لباقي الأجهزة.'} <a href="#" data-act="go" data-v="settings" style="color:var(--orange)">سجّل الدخول</a></div>` : Sync.status().state === 'error' ? `<div class="note">${esc(Sync.status().message)}</div>` : ''}
     ${stale ? `<div class="note">لم تأخذ نسخة احتياطية منذ أكثر من أسبوع. <a href="#" data-act="backup" style="color:var(--orange)">خذ نسخة الآن</a></div>` : ''}
     <div class="card ratebar ${rateToday ? '' : 'stale'}"><div><span class="hint" style="margin:0">سعر الصرف${lastRate ? ' · ' + lastRate.date : ''}</span><b class="num">${lastRate ? `1 ${esc(db.settings.currency)} = ${num(lastRate.rate)} ${esc(cur2())}` : 'غير محدد'}</b>${rateToday ? '' : '<span class="sub warn">لم يُحدَّث اليوم</span>'}</div><button class="btn ${rateToday ? '' : 'pri'}" data-act="setRate">تحديث السعر</button></div>
     <div class="quick">
@@ -258,9 +270,9 @@ const Views = {
 
 function syncCard() {
   if (Sync.connected()) {
-    return `<div class="card"><h2>المزامنة ${badge()}</h2><p class="hint">مسجّل باسم <span class="num">${esc(Sync.email())}</span>. التعديلات تصل لباقي الأجهزة خلال ثوانٍ، وبدون نت تُحفظ هنا وتُرفع لاحقاً.</p><p class="hint" id="syncMsg">${esc(Sync.status().message)}</p><div class="btns"><button class="btn pri" data-act="syncNow">مزامنة الآن</button><button class="btn" data-act="syncLogout">تسجيل الخروج</button></div></div>`;
+    return `<div class="card"><h2>المزامنة ${badge()}</h2><p class="hint">مسجّل باسم <span class="num">${esc(Sync.email())}</span>. التعديلات تصل لباقي الأجهزة خلال ثوانٍ، وبدون نت تُحفظ هنا وتُرفع لاحقاً.</p><p class="hint" id="syncMsg">${esc(Sync.status().message)}</p>${Sync.pending() ? `<p class="hint warn">تعديلات بانتظار الرفع: <span class="num">${Sync.pending()}</span></p>` : ''}<div class="btns"><button class="btn pri" data-act="syncNow">مزامنة الآن</button><button class="btn" data-act="syncLogout">تسجيل الخروج</button></div></div>`;
   }
-  return `<form id="syncf" class="card"><h2>المزامنة بين الأجهزة</h2><p class="hint">سجّل الدخول لتظهر نفس البيانات على كل الأجهزة. أي بيانات موجودة على هذا الجهاز ستُضاف إلى الحساب المشترك.</p>
+  return `<form id="syncf" class="card"><h2>المزامنة بين الأجهزة</h2>${Sync.status().state === 'auth' ? `<p class="err">${esc(Sync.status().message)}</p>` : ''}<p class="hint">سجّل الدخول لتظهر نفس البيانات على كل الأجهزة. أي بيانات موجودة على هذا الجهاز ستُضاف إلى الحساب المشترك.</p>
   ${Sync.needsProject() ? f('رابط المشروع', 'url', '', 'url', 'dir="ltr" placeholder="https://xxxx.supabase.co" autocomplete="off"') + f('المفتاح العام (anon)', 'key', '', 'text', 'dir="ltr" autocomplete="off"') : ''}
   ${f('البريد الإلكتروني', 'email', '', 'email', 'dir="ltr" autocomplete="username"')}${f('كلمة المرور', 'password', '', 'password', 'dir="ltr" autocomplete="current-password"')}
   <p class="err" id="syncErr"></p><button class="btn pri block" id="syncBtn">تسجيل الدخول</button></form>`;
@@ -373,10 +385,16 @@ function drawPicker() {
     (cur.kind === 'sale' ? `<button type="button" data-act="onceLine"><span class="warn">+ بيع «${esc($('#pk').value.trim())}» لمرة واحدة (بدون حفظ)</span></button>` : '') +
     (res.some(p => p.name.toLowerCase() === q) ? '' : `<button type="button" data-act="quickProduct"><span class="warn">+ إضافة «${esc($('#pk').value.trim())}» كمنتج جديد</span></button>`);
 }
+function focusLine(field) {
+  const el = $('#lines [data-i="0"][data-l="' + field + '"]');
+  if (el) { el.focus(); if (el.select) el.select(); }
+}
+// The line just added goes to the top, right under the search box, with its quantity ready to type.
 function addLine(p) {
-  const ex = cur.lines.find(l => l.pid === p.id);
-  if (ex) ex.qty = +ex.qty + 1; else cur.lines.push({ pid: p.id, name: p.name, qty: 1, price: linePrice(p) });
-  $('#pk').value = ''; drawPicker(); drawLines(); $('#pk').focus();
+  const at = cur.lines.findIndex(l => l.pid === p.id);
+  if (at >= 0) { const [ex] = cur.lines.splice(at, 1); ex.qty = +ex.qty + 1; cur.lines.unshift(ex); }
+  else cur.lines.unshift({ pid: p.id, name: p.name, qty: 1, price: linePrice(p) });
+  $('#pk').value = ''; drawPicker(); drawLines(); focusLine('qty');
 }
 function drawLines() {
   const sym = esc(docSym()), st = C.stock(db);
@@ -633,10 +651,9 @@ const A = {
   pickCust(d) { $('#cust').value = d.name; $('#csr').innerHTML = ''; $('#pk').focus(); },
   onceLine() {
     const name = $('#pk').value.trim();
-    cur.lines.push({ pid: '', name, qty: 1, price: 0, cost: 0 });
+    cur.lines.unshift({ pid: '', name, qty: 1, price: 0, cost: 0 });
     $('#pk').value = ''; drawPicker(); drawLines();
-    const ins = $('#lines').querySelectorAll('[data-l="' + (name ? 'price' : 'name') + '"]');
-    ins[ins.length - 1].focus();
+    focusLine(name ? 'price' : 'name');
   },
   quickProduct() { const name = $('#pk').value.trim(); const p = upsert('products', { name, category: CATS[0], unit: 'قطعة', sku: '', cost: 0, stock: 0, retail: 0, wholesale: 0, minStock: 0, track: true }); saveNow(); addLine(p); },
   rmLine(d) { cur.lines.splice(+d.i, 1); drawLines(); },
@@ -874,7 +891,9 @@ dlg.addEventListener('keydown', e => {
   if (e.key !== 'Enter' || t.tagName !== 'INPUT') return;
   e.preventDefault();
   const first = t.id === 'pk' ? $('#pkr button') : t.id === 'cust' ? $('#csr button') : null;
-  if (first) first.click(); else t.blur();
+  if (first) first.click();
+  else if (t.dataset.l) $('#pk').focus(); // after a quantity or price, straight back to search for the next product
+  else t.blur();
 });
 const touch = matchMedia('(pointer: coarse)').matches;
 dlg.addEventListener('focusin', e => {
@@ -934,7 +953,7 @@ $('#view').addEventListener('submit', async e => {
   if (e.target.id !== 'setf') return;
   const v = Object.fromEntries(new FormData(e.target).entries());
   ['openingCash', 'roundStep', 'shopPct', 'filamentKg', 'machineHour', 'powerHour', 'failPct', 'retailMarkup', 'wholesaleMarkup'].forEach(k => (v[k] = +v[k] || 0));
-  db.settings = { ...db.settings, ...v, updatedAt: Date.now() }; save(); toast('تم الحفظ');
+  db.settings = { ...db.settings, ...v, updatedAt: nextVersion(db.settings.updatedAt) }; Sync.mark('settings:main'); save(); toast('تم الحفظ');
 });
 $('#file').addEventListener('change', async e => {
   const file = e.target.files[0]; e.target.value = '';

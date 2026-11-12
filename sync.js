@@ -14,7 +14,7 @@ globalThis.Sync = (() => {
   function read() {
     let o = {};
     try { o = JSON.parse(localStorage.getItem(STORE) || '{}'); } catch (e) { /* first run */ }
-    return { url: '', key: '', email: '', access: '', refresh: '', expires: 0, cursor: '', lastPush: 0, ...o };
+    return { url: '', key: '', email: '', access: '', refresh: '', expires: 0, cursor: '', lastPush: 0, dirty: null, ...o };
   }
   function write() { try { localStorage.setItem(STORE, JSON.stringify(s)); } catch (e) { /* storage blocked */ } }
   const projectUrl = () => PROJECT.url || s.url;
@@ -36,7 +36,10 @@ globalThis.Sync = (() => {
     try {
       r = await fetch(`${projectUrl()}/auth/v1/token?grant_type=${grant}`, { method: 'POST', headers: { apikey: projectKey(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     } catch (e) { throw new SyncError('offline', 'تعذر الوصول إلى الخادم'); }
-    if (!r.ok) throw new SyncError('auth', grant === 'password' ? 'البريد أو كلمة المرور غير صحيحة' : 'انتهت الجلسة، سجّل الدخول من جديد');
+    if (grant === 'password' && !r.ok) throw new SyncError('auth', 'البريد أو كلمة المرور غير صحيحة');
+    // A refused refresh token means the session is over; a server hiccup is retried on the next round.
+    const refused = r.status >= 400 && r.status < 500;
+    if (!r.ok) throw new SyncError(refused ? 'expired' : 'error', refused ? 'انتهت جلسة الدخول على هذا الجهاز، سجّل الدخول من جديد' : 'الخادم لا يستجيب، سنحاول مجدداً');
     const j = await r.json();
     s.access = j.access_token; s.refresh = j.refresh_token; s.expires = Date.now() + j.expires_in * 1000;
     write();
@@ -45,32 +48,54 @@ globalThis.Sync = (() => {
     if (Date.now() > s.expires - 60000) await authRequest({ refresh_token: s.refresh }, 'refresh_token');
     return s.access;
   }
-  async function api(path, opts = {}) {
+  async function api(path, opts = {}, retried = false) {
     const t = await token();
     let r;
     try {
       r = await fetch(projectUrl() + path, { ...opts, headers: { apikey: projectKey(), Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' } });
     } catch (e) { throw new SyncError('offline', 'لا يوجد اتصال، التعديلات محفوظة وسترفع لاحقاً'); }
+    if (r.status === 401 && !retried) { s.expires = 0; return api(path, opts, true); }
     if (r.status === 401 || r.status === 403) throw new SyncError('error', 'هذا البريد غير مضاف لأعضاء الشركة بقاعدة البيانات');
     if (!r.ok) throw new SyncError('error', 'خطأ من الخادم (' + r.status + ')');
     return r.status === 204 ? null : r.json();
   }
 
+  // Local changes waiting to be uploaded are queued by key, so a phone whose clock is off never skips any.
+  function ensureDirty() {
+    if (s.dirty) return;
+    s.dirty = {};
+    Core.COLLS.forEach(c => db[c].forEach(x => { if ((x.updatedAt || 0) > s.lastPush) s.dirty[`${c}:${x.id}`] = 1; }));
+    if ((db.settings.updatedAt || 0) > s.lastPush) s.dirty['settings:main'] = 1;
+    write();
+  }
+  function mark(key) { ensureDirty(); s.dirty[key] = 1; write(); }
+  function markAll() {
+    s.dirty = {};
+    Core.COLLS.forEach(c => db[c].forEach(x => (s.dirty[`${c}:${x.id}`] = 1)));
+    if (db.settings.updatedAt) s.dirty['settings:main'] = 1;
+    write();
+  }
+  function current(key) {
+    if (key === 'settings:main') { const { lastBackup, ...shared } = db.settings; return { data: shared, at: db.settings.updatedAt || 0 }; }
+    const i = key.indexOf(':'), coll = key.slice(0, i), id = key.slice(i + 1);
+    const x = Core.COLLS.includes(coll) && db[coll].find(r => r.id === id);
+    return x ? { data: x, at: x.updatedAt || 0 } : null;
+  }
   function changedItems() {
+    ensureDirty();
     const items = [];
-    Core.COLLS.forEach(c => db[c].forEach(x => { if ((x.updatedAt || 0) > s.lastPush) items.push({ key: `${c}:${x.id}`, data: x, client_updated: x.updatedAt }); }));
-    if ((db.settings.updatedAt || 0) > s.lastPush) {
-      const { lastBackup, ...shared } = db.settings;
-      items.push({ key: 'settings:main', data: shared, client_updated: db.settings.updatedAt });
-    }
+    Object.keys(s.dirty).forEach(key => { const c = current(key); if (c) items.push({ key, data: c.data, client_updated: c.at }); else delete s.dirty[key]; });
     return items;
   }
   async function push() {
     const items = changedItems();
     for (let i = 0; i < items.length; i += BATCH) {
-      await api('/rest/v1/rpc/push_records', { method: 'POST', body: JSON.stringify({ items: items.slice(i, i + BATCH) }) });
+      const batch = items.slice(i, i + BATCH);
+      await api('/rest/v1/rpc/push_records', { method: 'POST', body: JSON.stringify({ items: batch }) });
+      // Anything edited again while uploading stays queued.
+      batch.forEach(it => { const c = current(it.key); if (!c || c.at === it.client_updated) delete s.dirty[it.key]; });
+      write();
     }
-    if (items.length) { s.lastPush = Math.max(s.lastPush, ...items.map(x => x.client_updated)); write(); }
   }
 
   function applyRow(row) {
@@ -120,7 +145,12 @@ globalThis.Sync = (() => {
       setState('idle', 'آخر مزامنة: ' + new Date().toLocaleTimeString('en-GB'));
       ok = true;
     } catch (e) {
-      setState(e.kind || 'error', e.message);
+      if (e.kind === 'expired') {
+        s.access = ''; s.refresh = ''; s.expires = 0; write();
+        clearInterval(timer); timer = null;
+        setState('auth', e.message);
+        if (typeof render === 'function') render();
+      } else setState(e.kind || 'error', e.message);
     }
     running = false;
     if (again) { again = false; return run(); }
@@ -149,25 +179,26 @@ globalThis.Sync = (() => {
     try {
       await authRequest({ email: email.trim(), password }, 'password');
     } catch (e) { s = prev; write(); throw e; }
-    s.email = email.trim(); s.cursor = ''; s.lastPush = 0;
-    write();
+    s.email = email.trim(); s.cursor = '';
+    markAll();
     const ok = await run();
     if (!ok && state === 'error') { const m = message; logout(); throw new SyncError('error', m); }
     start(false);
   }
 
   function logout() {
-    s = { ...s, email: '', access: '', refresh: '', expires: 0, cursor: '', lastPush: 0 };
+    s = { ...s, email: '', access: '', refresh: '', expires: 0, cursor: '' };
     write();
     clearInterval(timer); timer = null;
     setState('off');
   }
 
   return {
-    login, logout, run, schedule, start, connected,
+    login, logout, run, schedule, start, connected, mark,
+    pending: () => (s.dirty ? Object.keys(s.dirty).length : 0),
     needsProject: () => !PROJECT.url,
     email: () => s.email,
     status: () => ({ state, label: LABELS[state] || '', message }),
-    resendAll() { s.lastPush = 0; write(); schedule(); }
+    resendAll() { markAll(); schedule(); }
   };
 })();
