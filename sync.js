@@ -68,6 +68,7 @@ globalThis.Sync = (() => {
     if ((db.settings.updatedAt || 0) > s.lastPush) s.dirty['settings:main'] = 1;
     write();
   }
+  const pending = () => (s.dirty ? Object.keys(s.dirty).length : 0);
   function mark(key) { ensureDirty(); s.dirty[key] = 1; write(); }
   function markAll() {
     s.dirty = {};
@@ -108,7 +109,10 @@ globalThis.Sync = (() => {
     if (!Core.COLLS.includes(coll)) return false;
     const at = db[coll].findIndex(x => x.id === id);
     if (at < 0) { db[coll].push(row.data); return true; }
-    if ((db[coll][at].updatedAt || 0) >= row.client_updated) return false;
+    const local = db[coll][at];
+    if ((local.updatedAt || 0) >= row.client_updated) return false;
+    // A deletion always wins: if the server still has a record this device deleted, the deletion goes up again, newer.
+    if (local.deleted && !row.data.deleted) { local.updatedAt = row.client_updated + 1; mark(row.key); return true; }
     db[coll][at] = row.data;
     return true;
   }
@@ -139,8 +143,11 @@ globalThis.Sync = (() => {
     let ok = false;
     try {
       setState('syncing');
+      // Once per install of this version: read everything again, to repair changes an older version failed to send.
+      if (s.healed !== 1) { s.cursor = ''; s.healed = 1; write(); }
       await push();
       const changed = await pull();
+      if (pending()) await push();
       if (changed) { await saveNow(); refreshScreen(); } else if (pendingRender) refreshScreen();
       setState('idle', 'آخر مزامنة: ' + new Date().toLocaleTimeString('en-GB'));
       ok = true;
@@ -195,7 +202,7 @@ globalThis.Sync = (() => {
 
   return {
     login, logout, run, schedule, start, connected, mark,
-    pending: () => (s.dirty ? Object.keys(s.dirty).length : 0),
+    pending,
     needsProject: () => !PROJECT.url,
     email: () => s.email,
     status: () => ({ state, label: LABELS[state] || '', message }),

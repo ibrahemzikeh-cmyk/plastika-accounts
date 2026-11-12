@@ -972,5 +972,16 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) saveN
   render();
   Sync.start();
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js');
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    // When a new version takes over, reload into it, but never while an invoice or form is open.
+    const hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController) return;
+      const reload = () => location.reload();
+      if (dlg.open) dlg.addEventListener('close', reload, { once: true }); else reload();
+    });
+    navigator.serviceWorker.register('sw.js').then(r => {
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) r.update().catch(() => {}); });
+    });
+  }
 })();

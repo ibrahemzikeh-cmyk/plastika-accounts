@@ -1,9 +1,9 @@
 // Offline support: serve from cache immediately, refresh the cache in the background.
-const CACHE = 'plastika-v10';
+const CACHE = 'plastika-v11';
 const FILES = ['./', './index.html', './styles.css', './core.js', './sync.js', './app.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
