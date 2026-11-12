@@ -141,3 +141,10 @@ summary { cursor: pointer; font-weight: 600; color: var(--orange); min-height: 3
 .ratebar b { display: block; font-size: 1.15rem; }
 .ratebar.stale { border-color: var(--orange); }
 .line-t input { min-height: 38px; padding: 6px 9px; font-weight: 600; }
+
+.pk-res button > span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pk-res .sub { color: var(--muted); font-size: .8rem; }
+@media (max-width: 640px) {
+  dialog { width: 100%; max-width: 100%; margin: 0; inset: var(--vvt, 0) 0 auto 0; height: var(--vvh, 100dvh); max-height: var(--vvh, 100dvh); border-radius: 0; border: 0; }
+  .kb dialog .df { display: none; }
+}

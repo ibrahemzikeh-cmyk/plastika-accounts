@@ -311,11 +311,10 @@ function openDocForm(kind, rec) {
   };
   const disc = rec ? (sy ? (rec.discountDoc ?? roundSyp(rec.discount * k)) : rec.discount) : 0;
   const paid = rec ? (sy ? rec.paidOrig : rec.paid) : 0;
-  const names = live(db, 'contacts').filter(x => x.kind === (isS ? 'customer' : 'supplier')).map(x => `<option value="${esc(x.name)}">`).join('');
   modal(rec ? `تعديل فاتورة #${rec.no}` : (isS ? 'فاتورة بيع' : 'فاتورة شراء'), `
   <div class="grid2">${f('التاريخ', 'date', rec ? rec.date : today(), 'date')}${sel('عملة الفاتورة', 'dcur', [['usd', `دولار ${db.settings.currency}`], ['syp', `ليرة ${cur2()}`]], dc, 'id="dcur"')}</div>
   ${isS ? sel('نوع السعر', 'mode', [['retail', 'مفرق'], ['wholesale', 'جملة']], rec ? rec.mode : 'retail', 'id="mode"') : ''}
-  <label class="f">${isS ? 'اسم الزبون (يظهر على الفاتورة)' : 'المورد'}<input name="contact" list="cl" value="${esc(c ? c.name : '')}" autocomplete="off" ${isS ? 'placeholder="مثلاً: أبو محمد - اتركه فارغاً لزبون نقدي"' : ''}><datalist id="cl">${names}</datalist></label>
+  <label class="f">${isS ? 'اسم الزبون (يظهر على الفاتورة)' : 'المورد'}<input name="contact" id="cust" value="${esc(c ? c.name : '')}" autocomplete="off" enterkeyhint="next" ${isS ? 'placeholder="اكتب أول حرفين من الاسم - فارغ لزبون نقدي"' : ''}></label><div class="pk-res" id="csr" style="margin:-6px 0 10px"></div>
   ${isS ? `<label class="check"><input type="checkbox" name="ret" ${rec && rec.ret ? 'checked' : ''}> هذه الفاتورة مرتجع من زبون</label>` : ''}
   <div class="picker"><input id="pk" placeholder="ابحث عن منتج لإضافته..." autocomplete="off" aria-label="بحث عن منتج"><div class="pk-res" id="pkr"></div>${isS ? '<button type="button" class="btn block" style="margin-top:6px" data-act="onceLine">+ قطعة مطبوعة لمرة واحدة (بدون حفظها كمنتج)</button>' : ''}</div>
   <div id="lines"></div>
@@ -325,6 +324,20 @@ function openDocForm(kind, rec) {
   drawLines();
 }
 
+// Matching customers (or suppliers) for the name being typed; with nothing typed, the most recent ones.
+function drawCust() {
+  const box = $('#csr'), input = $('#cust');
+  if (!box || !cur) return;
+  const kind = cur.kind === 'sale' ? 'customer' : 'supplier', q = input.value.trim().toLowerCase();
+  const last = {};
+  live(db, kind === 'customer' ? 'sales' : 'purchases').forEach(d => { if (d.contactId) last[d.contactId] = Math.max(last[d.contactId] || 0, d.createdAt || 0); });
+  const all = live(db, 'contacts').filter(c => c.kind === kind);
+  if (q && all.some(c => c.name.toLowerCase() === q)) { box.innerHTML = ''; return; }
+  const res = all.filter(c => !q || (c.name + ' ' + (c.phone || '')).toLowerCase().includes(q))
+    .sort((a, b) => (last[b.id] || b.updatedAt || 0) - (last[a.id] || a.updatedAt || 0)).slice(0, 6);
+  box.innerHTML = res.map(c => { const bal = C.contactBalance(db, c); return `<button type="button" data-act="pickCust" data-name="${esc(c.name)}"><span>${esc(c.name)} <small class="sub num" style="display:inline">${esc(c.phone || '')}</small></span>${bal > 0 ? `<small class="warn num">دين ${esc(plain(bal))}</small>` : ''}</button>`; }).join('')
+    + (q && !res.length ? `<p class="hint" style="margin:4px 0">«${esc(input.value.trim())}» اسم جديد، سيُحفظ مع الفاتورة</p>` : '');
+}
 const roundSyp = v => Math.round((+v || 0) / step()) * step();
 const docSym = () => (cur && cur.cur === 'syp' ? cur2() : db.settings.currency);
 const formRate = () => rateOn($('#mf').elements.date.value);
@@ -345,12 +358,18 @@ function switchDocCur(to) {
   cur.cur = to; ui.docCur = to;
   drawLines();
 }
+// A product's price shown in the invoice currency.
+function priceTxt(usd) { return cur.cur === 'syp' ? `${num(roundSyp(usd * formRate()))} ${cur2()}` : `${num(usd)} ${db.settings.currency}`; }
+function prodInfo(p, st) {
+  const stockTxt = p.track !== false ? `متوفر <b class="${st[p.id].qty <= 0 ? 'neg' : ''}">${num(st[p.id].qty)}</b> ${esc(p.unit)}` : 'بدون مخزون';
+  return cur.kind === 'sale' ? `${stockTxt} · مفرق ${esc(priceTxt(+p.retail || 0))} · جملة ${esc(priceTxt(+p.wholesale || 0))}` : `${stockTxt} · التكلفة ${esc(priceTxt(st[p.id].avg))}`;
+}
 function drawPicker() {
   const q = $('#pk').value.trim().toLowerCase(), box = $('#pkr');
   if (!q) { box.innerHTML = ''; return; }
   const st = C.stock(db);
   const res = live(db, 'products').filter(p => (p.name + ' ' + (p.sku || '')).toLowerCase().includes(q)).slice(0, 8);
-  box.innerHTML = res.map(p => `<button type="button" data-act="pick" data-id="${p.id}"><span>${esc(p.name)}</span><span class="sub num" style="color:var(--muted)">${p.track !== false ? num(st[p.id].qty) + ' ' + esc(p.unit) : ''}</span></button>`).join('') +
+  box.innerHTML = res.map(p => `<button type="button" data-act="pick" data-id="${p.id}"><span><b>${esc(p.name)}</b><small class="sub">${prodInfo(p, st)}</small></span></button>`).join('') +
     (cur.kind === 'sale' ? `<button type="button" data-act="onceLine"><span class="warn">+ بيع «${esc($('#pk').value.trim())}» لمرة واحدة (بدون حفظ)</span></button>` : '') +
     (res.some(p => p.name.toLowerCase() === q) ? '' : `<button type="button" data-act="quickProduct"><span class="warn">+ إضافة «${esc($('#pk').value.trim())}» كمنتج جديد</span></button>`);
 }
@@ -360,8 +379,8 @@ function addLine(p) {
   $('#pk').value = ''; drawPicker(); drawLines(); $('#pk').focus();
 }
 function drawLines() {
-  const sym = esc(docSym());
-  $('#lines').innerHTML = cur.lines.map((l, i) => `<div class="line"><div class="line-t">${l.pid ? `<span>${esc(l.name)}</span>` : `<input data-l="name" data-i="${i}" value="${esc(l.name)}" placeholder="اسم القطعة" aria-label="اسم القطعة"><span class="tag">مرة واحدة</span>`}<button type="button" data-act="rmLine" data-i="${i}" aria-label="حذف السطر">✕</button></div>
+  const sym = esc(docSym()), st = C.stock(db);
+  $('#lines').innerHTML = cur.lines.map((l, i) => `<div class="line"><div class="line-t">${l.pid ? `<span>${esc(l.name)}</span>` : `<input data-l="name" data-i="${i}" value="${esc(l.name)}" placeholder="اسم القطعة" aria-label="اسم القطعة"><span class="tag">مرة واحدة</span>`}<button type="button" data-act="rmLine" data-i="${i}" aria-label="حذف السطر">✕</button></div>${l.pid && byId(db, 'products', l.pid) ? `<small class="sub" style="display:block;margin:-2px 0 6px">${prodInfo(byId(db, 'products', l.pid), st)}</small>` : ''}
   <div class="line-g"><label>الكمية<input type="number" step="any" inputmode="decimal" data-l="qty" data-i="${i}" value="${l.qty}"></label><label>السعر (${sym})<input type="number" step="any" inputmode="decimal" data-l="price" data-i="${i}" value="${l.price}"></label>${l.pid ? '' : `<label>تكلفتها عليك (${sym})<input type="number" step="any" inputmode="decimal" data-l="cost" data-i="${i}" value="${l.cost || 0}"></label>`}<label>المجموع<output id="ls${i}" class="num">${num(l.qty * l.price)}</output></label></div><div class="hint warn" id="lw${i}" style="margin:4px 0 0"></div></div>`).join('') || '<p class="hint">لم تتم إضافة منتجات بعد</p>';
   updateTotals();
 }
@@ -611,6 +630,7 @@ const A = {
   openDoc(d) { const coll = d.k === 'sale' ? 'sales' : 'purchases', r = byId(db, coll, d.id); if (d.k === 'sale') showInvoice(r); else openDocForm('purchase', r); },
   editDoc(d) { openDocForm(d.k, byId(db, 'sales', d.id)); },
   pick(d) { addLine(byId(db, 'products', d.id)); },
+  pickCust(d) { $('#cust').value = d.name; $('#csr').innerHTML = ''; $('#pk').focus(); },
   onceLine() {
     const name = $('#pk').value.trim();
     cur.lines.push({ pid: '', name, qty: 1, price: 0, cost: 0 });
@@ -848,9 +868,39 @@ document.addEventListener('click', e => {
   A[el.dataset.act](el.dataset, el);
 });
 dlg.addEventListener('submit', e => { e.preventDefault(); if (submitFn) submitFn(); });
+// On phones the Enter/Go key would submit the whole form; it picks the first suggestion or closes the keyboard instead.
+dlg.addEventListener('keydown', e => {
+  const t = e.target;
+  if (e.key !== 'Enter' || t.tagName !== 'INPUT') return;
+  e.preventDefault();
+  const first = t.id === 'pk' ? $('#pkr button') : t.id === 'cust' ? $('#csr button') : null;
+  if (first) first.click(); else t.blur();
+});
+const touch = matchMedia('(pointer: coarse)').matches;
+dlg.addEventListener('focusin', e => {
+  const t = e.target;
+  if (t.id === 'cust') drawCust(); else if ($('#csr') && !t.closest('#csr')) $('#csr').innerHTML = '';
+  if (!/INPUT|TEXTAREA|SELECT/.test(t.tagName) || t.type === 'checkbox') return;
+  if (touch && t.tagName !== 'SELECT') document.documentElement.classList.add('kb');
+  setTimeout(() => t.scrollIntoView({ block: 'center', behavior: 'smooth' }), 320);
+});
+dlg.addEventListener('focusout', () => setTimeout(() => {
+  const a = document.activeElement;
+  if (!a || !dlg.contains(a) || !/INPUT|TEXTAREA/.test(a.tagName)) document.documentElement.classList.remove('kb');
+}, 60));
+dlg.addEventListener('close', () => document.documentElement.classList.remove('kb'));
+// Keeps the dialog sized to the part of the screen the keyboard leaves visible.
+const vv = window.visualViewport;
+function fitViewport() {
+  if (!vv) return;
+  document.documentElement.style.setProperty('--vvh', vv.height + 'px');
+  document.documentElement.style.setProperty('--vvt', vv.offsetTop + 'px');
+}
+if (vv) { vv.addEventListener('resize', fitViewport); vv.addEventListener('scroll', fitViewport); fitViewport(); }
 dlg.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'pk') drawPicker();
+  if (t.id === 'cust') drawCust();
   if (t.dataset.l) { const l = cur.lines[+t.dataset.i]; l[t.dataset.l] = t.dataset.l === 'name' ? t.value : +t.value || 0; $('#ls' + t.dataset.i).textContent = num(l.qty * l.price); updateTotals(); }
   if (t.id === 'paid') cur.paidTouched = true;
   if (t.id === 'disc') updateTotals();
