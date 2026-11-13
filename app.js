@@ -190,8 +190,8 @@ const Views = {
     const p = C.pl(db, from, to);
     return header('المصاريف', `<button class="btn pri" data-act="expense">+ مصروف</button>`) + `
     <div class="filters"><select data-filter="month" aria-label="الشهر">${monthOpts(ui.month)}</select></div>
-    <div class="kpis"><div class="kpi"><span>مصاريف الشهر</span><b>${money(p.expenses)}</b></div><div class="kpi"><span>شراء معدات</span><b>${money(p.assets)}</b><small>لا تُخصم من الربح</small></div></div>
-    <div class="list">${es.map(e => `<button class="item" data-act="expense" data-id="${e.id}"><div><b>${esc(e.category)}</b><span class="sub"><span class="num">${e.date}</span> ${esc(e.note || '')}</span></div><div class="end"><b>${money(e.amount)}</b>${e.cur === 'syp' ? `<small class="syp num">${num(e.orig)} ${esc(cur2())}</small>` : ''}</div></button>`).join('') || empty('لا توجد مصاريف هذا الشهر')}</div>`;
+    <div class="kpis"><div class="kpi"><span>مصاريف الشهر</span><b>${money(p.expenses)}</b></div><div class="kpi"><span>مصاريف لا تُخصم من الربح</span><b>${money(p.assets)}</b><small>مثل المعدات</small></div></div>
+    <div class="list">${es.map(e => `<button class="item" data-act="expense" data-id="${e.id}"><div><b>${esc(e.category)}</b>${e.asset ? ' <span class="tag">لا يُخصم من الربح</span>' : ''}<span class="sub"><span class="num">${e.date}</span> ${esc(e.note || '')}</span></div><div class="end"><b>${money(e.amount)}</b>${e.cur === 'syp' ? `<small class="syp num">${num(e.orig)} ${esc(cur2())}</small>` : ''}</div></button>`).join('') || empty('لا توجد مصاريف هذا الشهر')}</div>`;
   },
 
   cash() {
@@ -332,6 +332,7 @@ function openDocForm(kind, rec) {
   <div id="lines"></div>
   <div class="grid2">${f('الخصم <span class="cl"></span>', 'discount', disc, 'number', 'id="disc"')}${f('المدفوع <span class="cl"></span>', 'paid', paid, 'number', 'id="paid"')}</div>
   <div class="rows card" id="tot"></div>
+  ${matchMedia('(pointer: fine)').matches ? '<p class="hint">اختصارات: Enter للخانة التالية · F4 للبحث عن زبون · الأسهم للتنقل بالاقتراحات · F5 لحفظ الفاتورة</p>' : ''}
   ${area('ملاحظة', 'note', rec ? rec.note : '')}`, () => saveDoc(kind, rec), delBtn(isS ? 'sales' : 'purchases', rec && rec.id));
   drawLines();
 }
@@ -771,12 +772,12 @@ const A = {
   },
   expense(d) {
     const e = d.id ? byId(db, 'expenses', d.id) : null;
-    modal(e ? 'تعديل مصروف' : 'مصروف جديد', `${f('التاريخ', 'date', e ? e.date : today(), 'date')}${sel('البند', 'category', [...EXP_CATS, ASSET_CAT], e ? e.category : EXP_CATS[0])}<div class="grid2">${f('المبلغ', 'amount', e ? (e.cur === 'syp' ? e.orig : e.amount) : '', 'number')}${curSel('amountCur', e ? e.cur : 'syp')}</div>${f('ملاحظة', 'note', e ? e.note : '')}<p class="hint">بند «${ASSET_CAT}» (مثل شراء طابعة) يخرج من الصندوق ولا يُخصم من ربح الشهر.</p>`, () => {
+    modal(e ? 'تعديل مصروف' : 'مصروف جديد', `${f('التاريخ', 'date', e ? e.date : today(), 'date')}${sel('البند', 'category', [...EXP_CATS, ASSET_CAT], e ? e.category : EXP_CATS[0])}<div class="grid2">${f('المبلغ', 'amount', e ? (e.cur === 'syp' ? e.orig : e.amount) : '', 'number')}${curSel('amountCur', e ? e.cur : 'syp')}</div>${f('ملاحظة', 'note', e ? e.note : '')}<label class="check"><input type="checkbox" name="deduct" ${!e || !e.asset ? 'checked' : ''}> يُخصم من ربح الشهر</label><p class="hint">ألغِ الخيار لمصروف ما بدك يأثر على أرباح الشهر، مثل شراء طابعة. بكل الحالتين المبلغ بيطلع من الصندوق.</p>`, () => {
       const v = formData();
       const a = readAmt(v, 'amount', v.date);
       if (a.error) return fail(a.error);
       if (!(a.usd > 0) || !v.date) return fail('أدخل المبلغ والتاريخ');
-      const r = { date: v.date, category: v.category, amount: a.usd, cur: a.cur, orig: a.orig, note: v.note, asset: v.category === ASSET_CAT }; if (d.id) r.id = d.id;
+      const r = { date: v.date, category: v.category, amount: a.usd, cur: a.cur, orig: a.orig, note: v.note, asset: !v.deduct }; if (d.id) r.id = d.id;
       upsert('expenses', r); closeModal(); save(); toast('تم الحفظ'); return true;
     }, delBtn('expenses', d.id));
   },
@@ -886,14 +887,45 @@ document.addEventListener('click', e => {
 });
 dlg.addEventListener('submit', e => { e.preventDefault(); if (submitFn) submitFn(); });
 // On phones the Enter/Go key would submit the whole form; it picks the first suggestion or closes the keyboard instead.
+// Keyboard in forms: Enter moves to the next field, arrows walk the suggestion lists, F4 finds a customer, F5 saves.
+const formFields = () => [...$('#mf').querySelectorAll('input, select, textarea')].filter(el => !el.disabled && el.type !== 'hidden' && el.offsetParent !== null);
+function focusNext(t) {
+  const list = formFields(), n = list[list.indexOf(t) + 1];
+  if (!n) return t.blur();
+  n.focus();
+  if (n.tagName === 'INPUT' && n.select && n.type !== 'checkbox' && n.type !== 'date') n.select();
+}
 dlg.addEventListener('keydown', e => {
   const t = e.target;
-  if (e.key !== 'Enter' || t.tagName !== 'INPUT') return;
+  if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && (t.id === 'pk' || t.id === 'cust' || t.closest('.pk-res'))) {
+    const box = t.closest('.pk-res') || (t.id === 'pk' ? $('#pkr') : $('#csr'));
+    const btns = [...box.querySelectorAll('button')];
+    if (!btns.length) return;
+    e.preventDefault();
+    const i = btns.indexOf(t);
+    if (e.key === 'ArrowDown') (btns[i + 1] || btns[0]).focus();
+    else if (i <= 0) (box.id === 'pkr' ? $('#pk') : $('#cust')).focus();
+    else btns[i - 1].focus();
+    return;
+  }
+  // On a highlighted suggestion Enter clicks it as usual; in a note it adds a line.
+  if (e.key !== 'Enter' || !$('#mf') || /TEXTAREA|BUTTON/.test(t.tagName)) return;
   e.preventDefault();
-  const first = t.id === 'pk' ? $('#pkr button') : t.id === 'cust' ? $('#csr button') : null;
-  if (first) first.click();
-  else if (t.dataset.l) $('#pk').focus(); // after a quantity or price, straight back to search for the next product
-  else t.blur();
+  if (t.id === 'pk' && $('#pkr button')) return $('#pkr button').click();
+  if (t.id === 'cust' && t.value.trim() && $('#csr button')) return $('#csr button').click();
+  focusNext(t);
+});
+document.addEventListener('keydown', e => {
+  if (!dlg.open) return;
+  if (e.key === 'F5') {
+    e.preventDefault(); // never reload the page with a form open
+    if (submitFn) $('#mf').requestSubmit();
+  } else if (e.key === 'F4' && $('#cust')) {
+    e.preventDefault();
+    const c = $('#cust');
+    c.focus(); drawCust();
+    if (c.value.trim() && $('#csr button')) $('#csr button').focus();
+  }
 });
 const touch = matchMedia('(pointer: coarse)').matches;
 dlg.addEventListener('focusin', e => {
