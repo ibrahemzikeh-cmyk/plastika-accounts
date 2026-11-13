@@ -332,7 +332,7 @@ function openDocForm(kind, rec) {
   <div id="lines"></div>
   <div class="grid2">${f('الخصم <span class="cl"></span>', 'discount', disc, 'number', 'id="disc"')}${f('المدفوع <span class="cl"></span>', 'paid', paid, 'number', 'id="paid"')}</div>
   <div class="rows card" id="tot"></div>
-  ${matchMedia('(pointer: fine)').matches ? '<p class="hint">اختصارات: Enter للخانة التالية · F4 للبحث عن زبون · الأسهم للتنقل بالاقتراحات · F5 لحفظ الفاتورة</p>' : ''}
+  ${matchMedia('(pointer: fine)').matches ? '<p class="hint">اختصارات: Enter للخانة التالية · Shift+Enter للخانة السابقة · F4 للبحث عن زبون · الأسهم للتنقل بالاقتراحات · F5 لحفظ الفاتورة</p>' : ''}
   ${area('ملاحظة', 'note', rec ? rec.note : '')}`, () => saveDoc(kind, rec), delBtn(isS ? 'sales' : 'purchases', rec && rec.id));
   drawLines();
 }
@@ -889,8 +889,8 @@ dlg.addEventListener('submit', e => { e.preventDefault(); if (submitFn) submitFn
 // On phones the Enter/Go key would submit the whole form; it picks the first suggestion or closes the keyboard instead.
 // Keyboard in forms: Enter moves to the next field, arrows walk the suggestion lists, F4 finds a customer, F5 saves.
 const formFields = () => [...$('#mf').querySelectorAll('input, select, textarea')].filter(el => !el.disabled && el.type !== 'hidden' && el.offsetParent !== null);
-function focusNext(t) {
-  const list = formFields(), n = list[list.indexOf(t) + 1];
+function focusNext(t, step = 1) {
+  const list = formFields(), n = list[list.indexOf(t) + step];
   if (!n) return t.blur();
   n.focus();
   if (n.tagName === 'INPUT' && n.select && n.type !== 'checkbox' && n.type !== 'date') n.select();
@@ -909,7 +909,10 @@ dlg.addEventListener('keydown', e => {
     return;
   }
   // On a highlighted suggestion Enter clicks it as usual; in a note it adds a line.
-  if (e.key !== 'Enter' || !$('#mf') || /TEXTAREA|BUTTON/.test(t.tagName)) return;
+  if (e.key !== 'Enter' || !$('#mf') || t.tagName === 'BUTTON') return;
+  // Shift+Enter goes back one field, from anywhere including the note.
+  if (e.shiftKey) { e.preventDefault(); return focusNext(t, -1); }
+  if (t.tagName === 'TEXTAREA') return;
   e.preventDefault();
   if (t.id === 'pk' && $('#pkr button')) return $('#pkr button').click();
   if (t.id === 'cust' && t.value.trim() && $('#csr button')) return $('#csr button').click();

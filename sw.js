@@ -1,5 +1,5 @@
 // Offline support: serve from cache immediately, refresh the cache in the background.
-const CACHE = 'plastika-v12';
+const CACHE = 'plastika-v13';
 const FILES = ['./', './index.html', './styles.css', './core.js', './sync.js', './app.js', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
