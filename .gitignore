@@ -1,3 +1,5 @@
 .claude/
 tests.js
 supabase-setup.sql
+store/
+store-setup.sql

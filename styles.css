@@ -148,3 +148,6 @@ summary { cursor: pointer; font-weight: 600; color: var(--orange); min-height: 3
   dialog { width: 100%; max-width: 100%; margin: 0; inset: var(--vvt, 0) 0 auto 0; height: var(--vvh, 100dvh); max-height: var(--vvh, 100dvh); border-radius: 0; border: 0; }
   .kb dialog .df { display: none; }
 }
+
+.img-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.img-pick img { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }

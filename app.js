@@ -77,19 +77,24 @@ const P = {
   home: 'M3 11l9-8 9 8M5 10v10h14V10M10 20v-6h4v6', sales: 'M6 2h12v20l-3-2-3 2-3-2-3 2zM9 7h6M9 11h6M9 15h4', buy: 'M3 4h2l2.4 12h11l2-8H6.4M9 21h.01M18 21h.01',
   box: 'M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8', users: 'M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8M22 21v-2a4 4 0 00-3-3.9M16 3.1a4 4 0 010 7.8',
   money: 'M3 6h18v12H3zM12 15a3 3 0 100-6 3 3 0 000 6M6 9v.01M18 15v.01', exp: 'M12 2v20M17 6H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6', part: 'M8 12a4 4 0 100-8 4 4 0 000 8M16 12a4 4 0 100-8 4 4 0 000 8M2 21c0-4 3-6 6-6s6 2 6 6M14 15.5c3.5-1 8 1 8 5.5',
-  chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2', gear: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.9l.1.1-2 3.4-.2-.1a1.7 1.7 0 00-2 .4 1.7 1.7 0 00-.6 1.3H11a1.7 1.7 0 00-.6-1.3 1.7 1.7 0 00-2-.4l-.2.1-2-3.4.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1V10a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1 2-3.4.2.1a1.7 1.7 0 002-.4A1.7 1.7 0 0011 2h4a1.7 1.7 0 00.6 1.3 1.7 1.7 0 002 .4l.2-.1 2 3.4-.1.1a1.7 1.7 0 00-.3 1.9 1.7 1.7 0 001.5 1v4a1.7 1.7 0 00-1.5 1z', more: 'M4 6h16M4 12h16M4 18h16', calc: 'M5 2h14v20H5zM8 6h8v4H8zM8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01'
+  chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2', gear: 'M12 15a3 3 0 100-6 3 3 0 000 6zM19.4 15a1.7 1.7 0 00.3 1.9l.1.1-2 3.4-.2-.1a1.7 1.7 0 00-2 .4 1.7 1.7 0 00-.6 1.3H11a1.7 1.7 0 00-.6-1.3 1.7 1.7 0 00-2-.4l-.2.1-2-3.4.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.5-1V10a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.9l-.1-.1 2-3.4.2.1a1.7 1.7 0 002-.4A1.7 1.7 0 0011 2h4a1.7 1.7 0 00.6 1.3 1.7 1.7 0 002 .4l.2-.1 2 3.4-.1.1a1.7 1.7 0 00-.3 1.9 1.7 1.7 0 001.5 1v4a1.7 1.7 0 00-1.5 1z', more: 'M4 6h16M4 12h16M4 18h16', cart: 'M6 6h15l-1.5 9h-12zM6 6L5 2H2M9 20h.01M18 20h.01', calc: 'M5 2h14v20H5zM8 6h8v4H8zM8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01'
 };
 const icon = n => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="${P[n]}"/></svg>`;
-const NAV = [['home', 'الرئيسية', 'home'], ['sales', 'المبيعات', 'sales'], ['purchases', 'المشتريات', 'buy'], ['products', 'المنتجات والأسعار', 'box'], ['pricing', 'حاسبة التسعير', 'calc'], ['contacts', 'العملاء والموردون', 'users'], ['expenses', 'المصاريف', 'exp'], ['cash', 'الصندوق', 'money'], ['partners', 'الشركاء والأرباح', 'part'], ['reports', 'التقارير', 'chart'], ['settings', 'الإعدادات', 'gear']];
+const NAV = [['home', 'الرئيسية', 'home'], ['sales', 'المبيعات', 'sales'], ['purchases', 'المشتريات', 'buy'], ['products', 'المنتجات والأسعار', 'box'], ['pricing', 'حاسبة التسعير', 'calc'], ['contacts', 'العملاء والموردون', 'users'], ['expenses', 'المصاريف', 'exp'], ['cash', 'الصندوق', 'money'], ['partners', 'الشركاء والأرباح', 'part'], ['orders', 'طلبات المتجر', 'cart'], ['reports', 'التقارير', 'chart'], ['settings', 'الإعدادات', 'gear']];
 const BOTTOM = [['home', 'الرئيسية', 'home'], ['sales', 'المبيعات', 'sales'], ['products', 'المنتجات', 'box'], ['partners', 'الشركاء', 'part']];
 
 const badge = () => { const st = Sync.status(); return `<span class="sync-badge" data-s="${st.state}" data-act="go" data-v="settings" role="button">${st.label}</span>`; };
 function renderNav() {
-  $('#side').innerHTML = `<div class="brand"><img src="icons/icon-192.png" alt=""><div>${esc(db.settings.company)}<br>${badge()}</div></div>` + NAV.map(([v, t, i]) => `<button class="nav ${v === view ? 'on' : ''}" data-act="go" data-v="${v}">${icon(i)}${t}</button>`).join('');
+  const newOrders = (ui.orders || []).filter(o => o.status === 'new').length;
+  $('#side').innerHTML = `<div class="brand"><img src="icons/icon-192.png" alt=""><div>${esc(db.settings.company)}<br>${badge()}</div></div>` + NAV.map(([v, t, i]) => `<button class="nav ${v === view ? 'on' : ''}" data-act="go" data-v="${v}">${icon(i)}${t}${v === 'orders' && newOrders ? ` <span class="tag alert num">${newOrders}</span>` : ''}</button>`).join('');
   const inBottom = BOTTOM.some(b => b[0] === view);
   $('#bottom').innerHTML = BOTTOM.map(([v, t, i]) => `<button class="${v === view ? 'on' : ''}" data-act="go" data-v="${v}">${icon(i)}${t}</button>`).join('') + `<button class="${inBottom ? '' : 'on'}" data-act="moreMenu">${icon('more')}المزيد</button>`;
 }
-function render() { renderNav(); $('#view').innerHTML = Views[view](); if (view === 'pricing') calc($('#calcf')); }
+function render() {
+  renderNav(); $('#view').innerHTML = Views[view]();
+  if (view === 'pricing') calc($('#calcf'));
+  if (view === 'orders' && !ui.ordersLoading && Date.now() - (ui.ordersAt || 0) > 20000) loadOrders();
+}
 
 const header = (title, btns = '') => `<div class="head"><h1>${title}</h1><div class="btns">${btns}</div></div>`;
 const empty = t => `<div class="empty">${t}</div>`;
@@ -128,6 +133,7 @@ const Views = {
     return `<div class="head"><div class="head-l"><img class="logo" src="icons/icon-192.png" alt="شعار بلاستيكة"><div><h1>${esc(db.settings.company)}</h1><span class="hint">${ymName(ym())}</span> ${badge()}</div></div></div>
     ${isEmpty ? `<div class="card"><h2>أهلاً بك 👋</h2><p class="hint">ابدأ بإضافة منتجاتك وشركائك، أو جرّب البرنامج ببيانات تجريبية.</p><div class="btns"><button class="btn pri" data-act="go" data-v="products">إضافة منتجات</button>${Sync.connected() ? '' : '<button class="btn" data-act="demo">تحميل بيانات تجريبية</button>'}</div></div>` : ''}
     ${!Sync.connected() ? `<div class="note">${Sync.status().state === 'auth' ? esc(Sync.status().message) : 'هذا الجهاز غير مربوط بالمزامنة، فاللي بتسجله هون ما بيوصل لباقي الأجهزة.'} <a href="#" data-act="go" data-v="settings" style="color:var(--orange)">سجّل الدخول</a></div>` : Sync.status().state === 'error' ? `<div class="note">${esc(Sync.status().message)}</div>` : ''}
+    ${(ui.orders || []).some(o => o.status === 'new') ? `<div class="note">عندك <b class="num">${ui.orders.filter(o => o.status === 'new').length}</b> طلبات جديدة من المتجر. <a href="#" data-act="go" data-v="orders" style="color:var(--orange)">افتح الطلبات</a></div>` : ''}
     ${stale ? `<div class="note">لم تأخذ نسخة احتياطية منذ أكثر من أسبوع. <a href="#" data-act="backup" style="color:var(--orange)">خذ نسخة الآن</a></div>` : ''}
     <div class="card ratebar ${rateToday ? '' : 'stale'}"><div><span class="hint" style="margin:0">سعر الصرف${lastRate ? ' · ' + lastRate.date : ''}</span><b class="num">${lastRate ? `1 ${esc(db.settings.currency)} = ${num(lastRate.rate)} ${esc(cur2())}` : 'غير محدد'}</b>${rateToday ? '' : '<span class="sub warn">لم يُحدَّث اليوم</span>'}</div><button class="btn ${rateToday ? '' : 'pri'}" data-act="setRate">تحديث السعر</button></div>
     <div class="quick">
@@ -161,7 +167,7 @@ const Views = {
     <div class="list">${ps.map(p => {
       const s = st[p.id], lowS = p.track !== false && +p.minStock > 0 && s.qty <= +p.minStock;
       return `<button class="item" data-act="product" data-id="${p.id}"><div><b>${esc(p.name)}</b><span class="sub">${esc(p.category || '')}${p.track !== false ? ` · التكلفة ${money(s.avg)}` : ''}</span>
-      ${p.track !== false ? `<span class="tag ${lowS ? 'alert' : ''}">المخزون: <span class="num">${num(s.qty)}</span> ${esc(p.unit)}</span>` : '<span class="tag">بدون مخزون</span>'}</div>
+      ${p.inStore ? '<span class="tag">بالمتجر</span> ' : ''}${p.track !== false ? `<span class="tag ${lowS ? 'alert' : ''}">المخزون: <span class="num">${num(s.qty)}</span> ${esc(p.unit)}</span>` : '<span class="tag">بدون مخزون</span>'}</div>
       <div class="end"><b>${money(p.retail)}</b>${syp(p.retail)}<span class="sub">جملة ${money(p.wholesale)}</span></div></button>`;
     }).join('') || empty('لا توجد منتجات بعد')}</div>
     ${moves.length ? `<h2 style="margin-top:18px">آخر حركات الإنتاج والجرد</h2><div class="list">${moves.map(m => `<div class="item static"><div><b>${m.c === 'productions' ? 'إنتاج: ' + esc(pname(m.pid)) : 'جرد: ' + esc(pname(m.pid))}</b><span class="sub num">${m.date}</span><span class="sub">${m.c === 'productions' ? `استهلاك ${num(m.matQty)} ${esc((byId(db, 'products', m.matPid) || {}).unit || '')} من ${esc(pname(m.matPid))}` : esc(m.reason || '')}</span></div><div class="end"><b class="num">${m.qty > 0 ? '+' : ''}${num(m.qty)}</b><br><button class="btn danger" style="min-height:36px;padding:2px 10px" data-act="del" data-c="${m.c}" data-id="${m.id}">حذف</button></div></div>`).join('')}</div>` : ''}`;
@@ -465,6 +471,7 @@ function saveDoc(kind, rec) {
   if (rec) doc.id = rec.id; else doc.no = nextNo(coll);
   ui.docCur = cur.cur;
   const saved = upsert(coll, doc);
+  if (cur.orderId) setOrderStatus(cur.orderId, 'done', true);
   closeModal(); save(); toast('تم الحفظ');
   if (isS) showInvoice(saved);
   return true;
@@ -628,6 +635,60 @@ function loadDemo() {
   db = d; save(); toast('تم تحميل البيانات التجريبية');
 }
 
+// ---------- store orders ----------
+const waNum = p => { const d = String(p || '').replace(/\D/g, ''); return d.startsWith('963') ? d : d.startsWith('0') ? '963' + d.slice(1) : d; };
+async function loadOrders() {
+  if (!Sync.connected()) return;
+  ui.ordersLoading = true;
+  try {
+    ui.orders = await Sync.rest('/rest/v1/orders?select=*&order=created_at.desc&limit=200');
+    ui.ordersAt = Date.now(); ui.ordersError = '';
+  } catch (e) { ui.ordersError = e.message; }
+  ui.ordersLoading = false;
+  const typing = document.activeElement && document.activeElement.closest && document.activeElement.closest('#view') && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+  if (typing) renderNav(); else render();
+}
+async function setOrderStatus(id, status, quiet) {
+  try {
+    await Sync.rest('/rest/v1/orders?id=eq.' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify({ status }) });
+    const o = (ui.orders || []).find(x => x.id === id);
+    if (o) o.status = status;
+    if (!quiet) toast('تم تحديث الطلب');
+    if (!dlg.open) render();
+  } catch (e) { toast(e.message); }
+}
+// Shrinks a photo to at most 1000px and uploads it; the product keeps its address.
+async function uploadProductImage(file) {
+  if (!Sync.connected()) return toast('سجّل دخول المزامنة أولاً لرفع الصور');
+  ui.uploading = true; toast('جاري رفع الصورة...');
+  try {
+    const bmp = await createImageBitmap(file);
+    const k = Math.min(1, 1000 / Math.max(bmp.width, bmp.height));
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+    cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+    const blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.85));
+    const url = await Sync.upload(`p-${uid()}.jpg`, blob);
+    if ($('#pimgv')) { $('#pimgv').value = url; $('#pimg').src = url; $('#pimg').hidden = false; $('[data-act="rmImage"]').hidden = false; }
+    toast('تم رفع الصورة');
+  } catch (e) { toast(e.message || 'تعذر رفع الصورة'); }
+  ui.uploading = false;
+}
+Views.orders = () => {
+  const head = header('طلبات المتجر', `<button class="btn" data-act="ordersRefresh">تحديث</button><a class="btn" href="${STORE_URL}" target="_blank" rel="noopener">فتح المتجر</a>`);
+  if (!Sync.connected()) return head + `<div class="note">الطلبات بتوصل عن طريق المزامنة. <a href="#" data-act="go" data-v="settings" style="color:var(--orange)">سجّل الدخول</a></div>`;
+  if (!ui.orders) return head + (ui.ordersError ? `<div class="note">${esc(ui.ordersError)}</div>` : empty('جاري تحميل الطلبات...'));
+  const st = { new: ['جديد', 'alert'], done: ['تمت الفوترة', ''], cancelled: ['ملغي', ''] };
+  const list = [...ui.orders].sort((a, b) => (a.status === 'new' ? 0 : 1) - (b.status === 'new' ? 0 : 1));
+  return head + (ui.ordersError ? `<div class="note">${esc(ui.ordersError)}</div>` : '') + `<div class="list">${list.map(o => `<div class="item static" style="flex-direction:column;align-items:stretch">
+    <div style="display:flex;justify-content:space-between;gap:10px"><div><b>${esc(o.name)}</b> <span class="tag ${st[o.status][1]}">${st[o.status][0]}</span><span class="sub num">${esc(o.phone)} · ${esc(new Date(o.created_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' }))}</span>${o.address ? `<span class="sub">${esc(o.address)}</span>` : ''}${o.note ? `<span class="sub">ملاحظة: ${esc(o.note)}</span>` : ''}</div>
+    <div class="end"><b class="num">${o.total_syp ? num(o.total_syp) + ' ' + esc(cur2()) : ''}</b><span class="sub num">${o.total_usd != null ? num(o.total_usd) + ' ' + esc(db.settings.currency) : ''}</span></div></div>
+    <div class="sub">${o.items.map(i => `${esc(i.name)} × <span class="num">${num(i.qty)}</span>`).join('، ')}</div>
+    <div class="btns">${o.status === 'new' ? `<button class="btn pri" data-act="orderInvoice" data-id="${o.id}">تحويل لفاتورة</button>` : ''}<a class="btn" href="https://wa.me/${waNum(o.phone)}" target="_blank" rel="noopener">واتساب الزبون</a>${o.status === 'new' ? `<button class="btn danger" data-act="orderStatus" data-s="cancelled" data-id="${o.id}">إلغاء</button>` : `<button class="btn" data-act="orderStatus" data-s="new" data-id="${o.id}">إرجاع لجديد</button>`}</div>
+  </div>`).join('') || empty('لا توجد طلبات بعد')}</div>`;
+};
+const STORE_URL = 'https://ibrahemzikeh-cmyk.github.io/plastika/';
+
 // ---------- actions ----------
 const A = {
   go(d) { view = d.v; ui.q = ''; ui.cat = ''; if (dlg.open) closeModal(); render(); window.scrollTo(0, 0); },
@@ -650,6 +711,30 @@ const A = {
   editDoc(d) { openDocForm(d.k, byId(db, 'sales', d.id)); },
   pick(d) { addLine(byId(db, 'products', d.id)); },
   pickCust(d) { $('#cust').value = d.name; $('#csr').innerHTML = ''; $('#pk').focus(); },
+  rmImage() { $('#pimgv').value = ''; $('#pimg').hidden = true; $('#pimg').removeAttribute('src'); },
+  orderStatus(d) {
+    if (d.s === 'cancelled' && !confirm('إلغاء هذا الطلب؟')) return;
+    setOrderStatus(d.id, d.s);
+  },
+  ordersRefresh() { loadOrders(); },
+  orderInvoice(d) {
+    const o = (ui.orders || []).find(x => x.id === d.id);
+    if (!o) return;
+    openDocForm('sale');
+    const name = o.name.trim();
+    const ex = live(db, 'contacts').find(c => c.kind === 'customer' && c.name === name);
+    if (!ex) upsert('contacts', { name, kind: 'customer', phone: o.phone, opening: 0 });
+    else if (!ex.phone) upsert('contacts', { id: ex.id, phone: o.phone });
+    $('#cust').value = name;
+    o.items.forEach(it => {
+      const p = byId(db, 'products', it.id);
+      if (p) cur.lines.push({ pid: p.id, name: p.name, qty: +it.qty, price: linePrice(p) });
+      else cur.lines.push({ pid: '', name: it.name, qty: +it.qty, price: cur.cur === 'syp' ? roundSyp(+it.price * formRate()) : +it.price, cost: 0 });
+    });
+    $('#mf').elements.note.value = `طلب من المتجر - ${o.phone}${o.address ? ' - ' + o.address : ''}${o.note ? ' - ' + o.note : ''}`;
+    cur.orderId = o.id;
+    drawLines();
+  },
   onceLine() {
     const name = $('#pk').value.trim();
     cur.lines.unshift({ pid: '', name, qty: 1, price: 0, cost: 0 });
@@ -687,6 +772,14 @@ const A = {
     <div class="grid2">${sel('التصنيف', 'category', CATS, p ? p.category : CATS[0])}${sel('الوحدة', 'unit', UNITS, p ? p.unit : UNITS[0])}${f('الرمز (اختياري)', 'sku', p ? p.sku : '')}${f('تنبيه عند مخزون', 'minStock', p ? p.minStock : 0, 'number')}</div>
     <div class="grid2">${f('سعر المفرق', 'retail', p ? p.retail : 0, 'number', 'id="retail"')}${f('سعر الجملة', 'wholesale', p ? p.wholesale : 0, 'number', 'id="wholesale"')}${f('تكلفة الوحدة', 'cost', p ? p.cost : 0, 'number', 'id="pcost"')}${f('المخزون الافتتاحي', 'stock', p ? p.stock : 0, 'number')}</div>
     <label class="check"><input type="checkbox" name="track" ${!p || p.track !== false ? 'checked' : ''}> يتابع مخزونه (ألغِها للخدمات والتصاميم)</label>
+    <details ${p && p.inStore ? 'open' : ''}><summary>المتجر الإلكتروني</summary>
+      <label class="check" style="margin-top:8px"><input type="checkbox" name="inStore" ${p && p.inStore ? 'checked' : ''}> يظهر بالمتجر بسعر المفرق</label>
+      <div class="img-pick"><img id="pimg" alt="صورة المنتج" src="${esc(p && p.image ? p.image : '')}" ${p && p.image ? '' : 'hidden'}>
+      <label class="btn">${p && p.image ? 'تغيير الصورة' : 'إضافة صورة'}<input type="file" id="pfile" accept="image/*" hidden></label>
+      <button type="button" class="btn danger" data-act="rmImage" ${p && p.image ? '' : 'hidden'}>إزالة</button></div>
+      <input type="hidden" name="image" id="pimgv" value="${esc(p && p.image ? p.image : '')}">
+      ${area('وصف بالمتجر (اختياري)', 'storeDesc', p ? p.storeDesc : '')}
+    </details>
     <details><summary>حاسبة تكلفة الطباعة وتسعيرها</summary>
       <div style="margin-top:8px">${calcFields(S)}</div>
       <div class="rows calcR"></div><button type="button" class="btn block" data-act="applyCalc" style="margin-top:8px">تطبيق الأسعار المقترحة</button>
@@ -695,7 +788,8 @@ const A = {
       const v = formData();
       if (!v.name.trim()) return fail('اكتب اسم المنتج');
       if (live(db, 'products').some(x => x.name === v.name.trim() && x.id !== d.id)) return fail('يوجد منتج بنفس الاسم');
-      const rec = { name: v.name.trim(), category: v.category, unit: v.unit, sku: v.sku, minStock: +v.minStock || 0, retail: +v.retail || 0, wholesale: +v.wholesale || 0, cost: +v.cost || 0, stock: +v.stock || 0, track: !!v.track };
+      const rec = { name: v.name.trim(), category: v.category, unit: v.unit, sku: v.sku, minStock: +v.minStock || 0, retail: +v.retail || 0, wholesale: +v.wholesale || 0, cost: +v.cost || 0, stock: +v.stock || 0, track: !!v.track, inStore: !!v.inStore, image: v.image || '', storeDesc: v.storeDesc || '' };
+      if (ui.uploading) return fail('استنى لحتى تخلص الصورة رفع');
       if (d.id) rec.id = d.id;
       upsert('products', rec); closeModal(); save(); toast('تم الحفظ'); return true;
     }, delBtn('products', d.id));
@@ -963,6 +1057,7 @@ dlg.addEventListener('input', e => {
 });
 dlg.addEventListener('change', e => {
   const t = e.target;
+  if (t.id === 'pfile' && t.files[0]) uploadProductImage(t.files[0]);
   if (t.id === 'mode') { cur.lines.forEach(l => { const p = byId(db, 'products', l.pid); if (p) l.price = linePrice(p); }); drawLines(); }
   if (t.name === 'ret') updateTotals();
   if (t.id === 'dcur') switchDocCur(t.value);
@@ -1006,6 +1101,8 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) saveN
   await load();
   render();
   Sync.start();
+  loadOrders();
+  setInterval(() => { if (!document.hidden) loadOrders(); }, 60000);
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     // When a new version takes over, reload into it, but never while an invoice or form is open.

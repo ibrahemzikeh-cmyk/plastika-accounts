@@ -6,6 +6,8 @@ globalThis.Sync = (() => {
     url: 'https://urrnczuenavufxrqypum.supabase.co',
     key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVycm5jenVlbmF2dWZ4cnF5cHVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQyNTUyNzksImV4cCI6MjEwOTgzMTI3OX0.ceN997ahd4H78jPULloaWmHr8EVO2kYrWCat160M330'
   };
+  // Local testing only: a developer can point a localhost copy at a test server.
+  try { const dev = location.hostname === 'localhost' && localStorage.getItem('plastika-dev-api'); if (dev) { PROJECT.url = dev; PROJECT.key = 'dev'; } } catch (e) { /* not a browser */ }
   const STORE = 'plastika-sync', BATCH = 400, PAGE = 1000, OVERLAP_MS = 10000, POLL_MS = 15000;
   const LABELS = { idle: 'متزامن', syncing: 'جارٍ المزامنة', offline: 'بدون نت', error: 'خطأ بالمزامنة', auth: 'سجّل الدخول' };
 
@@ -99,6 +101,30 @@ globalThis.Sync = (() => {
     }
   }
 
+  // The store shows how many of each listed product are in stock; this keeps that number current.
+  async function pushStoreStock() {
+    const st = Core.stock(db), m = {};
+    Core.live(db, 'products').filter(p => p.inStore).forEach(p => (m[p.id] = p.track === false ? null : Math.round(st[p.id].qty * 100) / 100));
+    const json = JSON.stringify(m);
+    if (json === s.storeStock) return;
+    await api('/rest/v1/rpc/push_records', { method: 'POST', body: JSON.stringify({ items: [{ key: 'store:stock', data: m, client_updated: Date.now() }] }) });
+    s.storeStock = json; write();
+  }
+  async function rest(path, opts = {}) {
+    if (!connected()) throw new SyncError('error', 'سجّل دخول المزامنة أولاً');
+    return api(path, opts);
+  }
+  // Uploads a product photo to the public bucket and returns its address.
+  async function upload(name, blob) {
+    if (!connected()) throw new SyncError('error', 'سجّل دخول المزامنة أولاً لرفع الصور');
+    const t = await token();
+    let r;
+    try {
+      r = await fetch(`${projectUrl()}/storage/v1/object/product-images/${name}`, { method: 'POST', headers: { apikey: projectKey(), Authorization: 'Bearer ' + t, 'Content-Type': blob.type, 'x-upsert': 'true' }, body: blob });
+    } catch (e) { throw new SyncError('offline', 'لا يوجد اتصال، جرّب رفع الصورة لاحقاً'); }
+    if (!r.ok) throw new SyncError('error', 'تعذر رفع الصورة (' + r.status + ')');
+    return `${projectUrl()}/storage/v1/object/public/product-images/${name}`;
+  }
   function applyRow(row) {
     const i = row.key.indexOf(':'), coll = row.key.slice(0, i), id = row.key.slice(i + 1);
     if (coll === 'settings') {
@@ -148,6 +174,7 @@ globalThis.Sync = (() => {
       await push();
       const changed = await pull();
       if (pending()) await push();
+      await pushStoreStock();
       if (changed) { await saveNow(); refreshScreen(); } else if (pendingRender) refreshScreen();
       setState('idle', 'آخر مزامنة: ' + new Date().toLocaleTimeString('en-GB'));
       ok = true;
@@ -201,7 +228,7 @@ globalThis.Sync = (() => {
   }
 
   return {
-    login, logout, run, schedule, start, connected, mark,
+    login, logout, run, schedule, start, connected, mark, rest, upload,
     pending,
     needsProject: () => !PROJECT.url,
     email: () => s.email,
